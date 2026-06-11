@@ -1,0 +1,58 @@
+Run the agent team (from inside aws-gitlab)
+
+export GITHUB_MCP_TOKEN="$(gh auth token)"
+cd ~/git/infocert/aws-gitlab
+git switch -c upgrade/gitlab-9-11-6
+claude
+
+▎ Why from this directory: the team's teammates inherit the lead session's cwd and auto-load this repo's CLAUDE.md + the read-only helm allowlist in .claude/settings.local.json. Launching from ai-agents would give them the wrong context. Optional split panes: run inside tmux first.
+
+Then paste this prompt:
+
+Create an agent team to prepare (NOT execute) the gitlab-test GitLab Helm chart
+upgrade from 8.3.5 (app v17.3) to 9.11.6 (app v18.11.5). OFFLINE ONLY — never
+contact any cluster; work only from chart artifacts + upstream changelogs. Work in
+gitlab-test/. Require plan approval before any teammate writes a file, and only
+approve plans that account for the GitLab required upgrade path. Spawn these teammates
+to work in parallel and message each other:
+
+1. "researcher" (issue-researcher): determine the OFFICIAL GitLab required upgrade
+   PATH from v17.3 → v18.11 (mandatory stop-over versions for background migrations,
+   in both app and chart terms), plus all breaking changes, removed/renamed Helm
+   values, and required migration steps. Cite upstream sources.
+
+2. "chartdiff" (iac-troubleshooter): produce a concrete chart-level diff —
+   `helm pull gitlab/gitlab` for 8.3.5 and 9.11.6, diff `helm show values` of both,
+   and diff `helm template` rendered with helm-values-8-3-5.yaml. Flag depre
+   Kubernetes APIs in the rendered 9.11.6 manifests. Share findings with "builder".
+
+Once researcher + chartdiff report, have:
+
+3. "builder" (code-implementer): write gitlab-test/upgrade-9-11-6/DIFF-REPORT.md (merging
+   both teammates' findings + the required upgrade path), then create
+   gitlab-test/helm-chart-resources/helm-values-9-11-6.yaml derived from
+   helm-values-8-3-5.yaml and adjusted for every change found — preserving a
+   environment-specific values (hosts, RDS/Redis/S3, object storage, runners, SSO).
+   If the upgrade path needs intermediate stops, also create a values file p
+   Validate locally: `helm lint` and `helm template --version 9.11.6`. Never apply.
+   Also write gitlab-test/upgrade-9-11-6/UAT-PLAN.md (acceptance criteria: w
+   repo push/pull, CI pipelines + runners, registry, object storage, backups).
+
+4. "uat" (uat-tester): review UAT-PLAN.md, confirm the local validation (lint/template
+   render), and emit the MANUAL, human-approved checklist for namespace gitl
+   the ordered helm upgrade command(s) along the required path and post-upgrade smoke
+   tests. It must NOT run anything against a cluster.
+
+When all tasks are done, open a single DRAFT PR with the new values file(s),
+report, and the UAT plan. Never merge, never apply, never run helm upgrade/mapkubeapis.
+Then wait for me before cleaning up the team.
+
+What you'll get + your manual gates
+
+- Draft PR containing: upgrade-9-11-6/DIFF-REPORT.md (incl. the required upgces/helm-values-9-11-6.yaml (+ any intermediate-stop values files),upgrade-9-11-6/UAT-PLAN.md, and the manual upgrade/UAT checklist.
+- You run manually (agents are blocked from these): the actual helm upgrade  kubectl apply, any helm mapkubeapis, post-upgrade UAT against the livegitlab-test namespace, and merging the PR.
+
+Tips while it runs: Shift+Down to cycle teammates and message one directly; if the lead starts doing work itself, tell it "wait for your teammates to finish"; when done, "clean up
+the team".
+
+Two optional follow-ups I can do now: (1) since this isn't a quick task, the.local.json are untracked in aws-gitlab — want me to commit them on yourupgrade/gitlab-9-11-6 branch? (2) save a reusable /gitlab-upgrade <from> <to> <ns> workflow so future upgrades are one command?
