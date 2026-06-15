@@ -34,8 +34,15 @@ jq --slurpfile add "$SRC/settings.json" '
   | .permissions = (.permissions // {})
   | .permissions.allow = (((.permissions.allow // []) + $add[0].permissions.allow) | unique)
   | .permissions.deny  = (((.permissions.deny  // []) + $add[0].permissions.deny ) | unique)
+  # Ship the prompt-based "goal" hooks (definition-of-done) globally. These carry
+  # no script file, so only the settings keys need merging. We deliberately do NOT
+  # merge PreToolUse: that push guard references $CLAUDE_PROJECT_DIR and stays
+  # project-scoped. unique keeps re-runs idempotent.
+  | .hooks = (.hooks // {})
+  | .hooks.Stop         = (((.hooks.Stop         // []) + ($add[0].hooks.Stop         // [])) | unique)
+  | .hooks.SubagentStop = (((.hooks.SubagentStop // []) + ($add[0].hooks.SubagentStop // [])) | unique)
 ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
-echo "    enabled agent teams + merged manual-gate permissions in settings.json"
+echo "    enabled agent teams + merged manual-gate permissions + goal hooks in settings.json"
 
 # ---- Register the GitHub MCP server at USER scope (token sourced at runtime) ----
 # Note: `claude mcp list` is cwd-sensitive (it includes project .mcp.json), so we
