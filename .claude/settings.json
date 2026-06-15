@@ -102,6 +102,28 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "statusMessage": "Checking the change resolves the findings...",
+            "prompt": "Completion gate. If the conversation surfaced concrete code/infra issues or errors meant to be fixed (e.g. issue-researcher, app-troubleshooter, iac-troubleshooter, or uat-tester ran), the task is done ONLY when it shows the change actually RESOLVED each one with evidence (build exits 0, error no longer reproduces, UAT criteria hold). A diagnosis, an unapplied fix, or an unrelated green test is not enough — return decision:block and name the unresolved finding(s) in reason. If no such findings exist, allow the stop. Loop guard: if a finding has stalled across 3+ turns or needs a human/manual gate, allow the stop and state what remains. Input: $ARGUMENTS"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "statusMessage": "Checking subagent met its goal...",
+            "prompt": "Accept a finished subagent only if it met its goal; gate ONLY issue-researcher, app-troubleshooter, iac-troubleshooter, uat-tester (else accept). issue-researcher / iac-troubleshooter (read-only): each issue must be a checkable finding (symptom, root cause, observable 'resolved when', how to verify) — else decision:block to make them checkable. app-troubleshooter: must show its fix made the original error stop reproducing — else block. uat-tester: PASS only if every inherited finding is verified resolved — else block and name it. When unsure, accept. Input: $ARGUMENTS"
+          }
+        ]
+      }
     ]
   }
 }
