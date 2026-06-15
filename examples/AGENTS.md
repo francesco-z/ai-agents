@@ -1,9 +1,9 @@
 # AGENTS.md — cloudnative-pg-chart
 
 Contract for any agent working in this repo. This repo is a **vendored mirror of the upstream
-[CloudNativePG charts](https://github.com/cloudnative-pg/charts)** plus Valbruna OpenShift
+[CloudNativePG charts](https://github.com/cloudnative-pg/charts)** plus OpenShift
 customizations. Companion values repo: `cloudnative-pg-procs-values`. Remote:
-`bitbucket.valbruna.it/scm/os/cloudnative-pg-chart.git`.
+`bitbucket.example.com/scm/os/cloudnative-pg-chart.git`.
 
 ## Decisions in force
 - **Operator install:** Helm chart vendored here (ArgoCD owns it). Do **not** assume OLM.
@@ -37,7 +37,7 @@ customizations. Companion values repo: `cloudnative-pg-procs-values`. Remote:
 
 ## Customization rules
 Allowed on `stage`/`main` only (never `original`). Keep them minimal and documented:
-- Default image registry → `itviacvls0332.valbruna.it:8444` (mirror upstream images there).
+- Default image registry → `registry.example.com:8444` (mirror upstream images there).
 - OpenShift defaults (SCC-friendly; CNPG already supports `restricted-v2`).
 - Resource requests/limits and other org defaults.
 Document every customization in the commit body so the next sync can re-apply it.
