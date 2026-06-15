@@ -1,7 +1,7 @@
 # AGENTS.md — cloudnative-pg-chart
 
 Contract for any agent working in this repo. This repo is a **vendored mirror of the upstream
-[CloudNativePG charts](https://github.com/cloudnative-pg/charts)** plus customer OpenShift
+[CloudNativePG charts](https://github.com/cloudnative-pg/charts)** plus OpenShift
 customizations. Companion values repo: `cloudnative-pg-procs-values`. Remote:
 `bitbucket.example.com/scm/os/cloudnative-pg-chart.git`.
 
