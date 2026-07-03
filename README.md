@@ -16,6 +16,7 @@ repositories.
 | Agent | `code-architect` | Splits a feature into independent, parallel subtasks across repos |
 | Agent | `code-implementer` | Implements one subtask in an **isolated git worktree** (parallel-safe) |
 | Agent | `uat-tester` | **Required** UAT gate — local/ephemeral only, PASS/FAIL verdict |
+| Agent | `code-reviewer` | **Required** review gate after UAT — adversarially double-checks the diff, debates fixes back to `code-implementer` until APPROVE |
 | Agent | `pr-author` | Opens **draft** PRs, never merges |
 | Agent | `triage-coordinator` | Leads troubleshooting via competing hypotheses |
 | Agent | `iac-troubleshooter` | Terraform/Kubernetes/Helm diagnosis (read-only) |
@@ -24,7 +25,7 @@ repositories.
 | Skill | `terraform-/kubernetes-troubleshooting` | IaC diagnostic playbooks |
 | Skill | `node-npm-/go-/python-` | App-language playbooks |
 | Skill | `uat-testing`, `multi-repo-workflow` | Procedures for the gates & parallel splitting |
-| Workflow | `/multi-repo-feature` | plan → implement (parallel) → UAT → draft PR, per repo |
+| Workflow | `/multi-repo-feature` | plan → implement (parallel) → UAT → code review (debate loop) → draft PR, per repo |
 | Workflow | `/troubleshoot-fanout` | parallel hypotheses → adversarial cross-check → root cause + proposed fix |
 | MCP | `github` | Official remote GitHub MCP (issues, PRs, code search) |
 
