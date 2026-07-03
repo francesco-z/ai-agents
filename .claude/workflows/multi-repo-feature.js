@@ -5,6 +5,7 @@ export const meta = {
     { title: 'Plan', detail: 'architect splits each repo into parallel subtasks' },
     { title: 'Implement', detail: 'one implementer per subtask, isolated worktrees, parallel' },
     { title: 'UAT', detail: 'required acceptance testing per repo, local/ephemeral only' },
+    { title: 'Review', detail: 'adversarial code review; debate fixes back to implementer until APPROVE' },
     { title: 'PR', detail: 'open a draft PR per repo (human merges)' },
   ],
 }
@@ -70,11 +71,36 @@ const UAT = {
   },
   required: ['verdict', 'details'],
 }
+const REVIEW = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', enum: ['APPROVE', 'CHANGES_REQUESTED'] },
+    summary: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
+          location: { type: 'string' },
+          problem: { type: 'string' },
+          suggested_fix: { type: 'string' },
+        },
+        required: ['severity', 'problem'],
+      },
+    },
+  },
+  required: ['verdict', 'summary'],
+}
 const PR = {
   type: 'object',
   properties: { url: { type: 'string' }, opened: { type: 'boolean' }, note: { type: 'string' } },
   required: ['opened', 'note'],
 }
+
+// Max review<->implementer debate rounds before we stop and defer to a human.
+const MAX_REVIEW_ROUNDS = 3
+const isBlocking = f => f.severity === 'blocker' || f.severity === 'major'
 
 // ---- Pipeline: each repo flows independently through all four stages ----
 const results = await pipeline(
@@ -105,19 +131,61 @@ const results = await pipeline(
     { agentType: 'uat-tester', phase: 'UAT', label: `uat:${built.job.repo}`, schema: UAT }
   ).then(uat => ({ ...built, uat })),
 
-  // Stage 4: open a DRAFT PR only if UAT passed (human merges)
+  // Stage 4: adversarial code review AFTER UAT, BEFORE the PR.
+  // Debate loop: reviewer finds problems -> implementer fixes -> re-review, until APPROVE or cap.
+  async (checked) => {
+    if (!checked.uat || checked.uat.verdict !== 'PASS') {
+      return { ...checked, review: null } // UAT already failed; PR stage will skip.
+    }
+    let review = null
+    for (let round = 1; round <= MAX_REVIEW_ROUNDS; round++) {
+      review = await agent(
+        `Repo: ${checked.job.repo}\nAcceptance criteria: ${JSON.stringify(checked.plan.acceptance_criteria)}\n` +
+        `Implemented work (branches/files): ${JSON.stringify(checked.impls)}\n\n` +
+        `Round ${round}/${MAX_REVIEW_ROUNDS}. Adversarially review the diff on the feature branch(es). ` +
+        `Hunt for correctness, security, regression, and design defects. ` +
+        `Return APPROVE only if there are no blocking (blocker/major) findings.`,
+        { agentType: 'code-reviewer', phase: 'Review', label: `review:${checked.job.repo}:r${round}`, schema: REVIEW }
+      )
+      const blockers = (review?.findings || []).filter(isBlocking)
+      if (!review || review.verdict === 'APPROVE' || blockers.length === 0) break
+
+      if (round === MAX_REVIEW_ROUNDS) {
+        log(`Review still blocking for ${checked.job.repo} after ${round} rounds — deferring to human`)
+        break
+      }
+      log(`Review round ${round} for ${checked.job.repo}: ${blockers.length} blocking finding(s) — sending back to implementer`)
+      // Route blocking findings back to an implementer to fix on the same branch(es).
+      await parallel(
+        checked.impls.map(impl => () => agent(
+          `Repo: ${checked.job.repo}\nBranch: ${impl.branch || '(feature branch)'}\n` +
+          `Code review requested changes. Fix ONLY these blocking findings on the existing branch, ` +
+          `keep the fix minimal and in-style, add/adjust tests, and commit:\n${JSON.stringify(blockers)}`,
+          { agentType: 'code-implementer', phase: 'Implement', label: `fix:${checked.job.repo}:r${round}`, isolation: 'worktree', schema: IMPL }
+        ))
+      )
+    }
+    return { ...checked, review }
+  },
+
+  // Stage 5: open a DRAFT PR only if UAT passed AND review approved (human merges)
   (done) => {
     if (!done.uat || done.uat.verdict !== 'PASS') {
       log(`UAT did not pass for ${done.job.repo} — skipping PR`)
-      return { repo: done.job.repo, uat: done.uat, pr: { opened: false, note: 'UAT not PASS; no PR opened' } }
+      return { repo: done.job.repo, uat: done.uat, review: done.review, pr: { opened: false, note: 'UAT not PASS; no PR opened' } }
+    }
+    if (!done.review || done.review.verdict !== 'APPROVE') {
+      log(`Code review did not APPROVE for ${done.job.repo} — skipping PR`)
+      return { repo: done.job.repo, uat: done.uat, review: done.review, pr: { opened: false, note: 'Code review not APPROVE; no PR opened' } }
     }
     return agent(
       `Repo: ${done.job.repo}\nOpen a DRAFT pull request for the feature branch(es) from this work:\n` +
-      `${JSON.stringify(done.impls)}\nUAT result: ${JSON.stringify(done.uat)}\n\n` +
-      `Push the feature branch, open with --draft, write a thorough body including the UAT manual checklist. ` +
-      `Never merge, never enable auto-merge.`,
+      `${JSON.stringify(done.impls)}\nUAT result: ${JSON.stringify(done.uat)}\n` +
+      `Code review: ${JSON.stringify(done.review)}\n\n` +
+      `Push the feature branch, open with --draft, write a thorough body including the UAT manual checklist ` +
+      `and a note that code review APPROVED. Never merge, never enable auto-merge.`,
       { agentType: 'pr-author', phase: 'PR', label: `pr:${done.job.repo}`, schema: PR }
-    ).then(pr => ({ repo: done.job.repo, uat: done.uat, pr }))
+    ).then(pr => ({ repo: done.job.repo, uat: done.uat, review: done.review, pr }))
   }
 )
 

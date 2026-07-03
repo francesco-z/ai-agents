@@ -21,7 +21,8 @@ independent ones concurrently. Be explicit to force the split:
 
 ```text
 Research, implement, and UAT the new /health endpoint. Use issue-researcher and
-code-implementer in parallel, then uat-tester, then pr-author for a draft PR.
+code-implementer in parallel, then uat-tester, then code-reviewer (fixing any
+blocking findings back through code-implementer), then pr-author for a draft PR.
 ```
 
 - `@agent-code-implementer` (or `@"code-implementer (agent)"`) forces a specific agent.
@@ -51,7 +52,8 @@ approve plans that include tests. Open a draft PR per repo at the end — do not
 Saved in `.claude/workflows/` and available as slash commands after install.
 
 **`/multi-repo-feature`** — plan → implement (parallel, isolated worktrees) →
-UAT → draft PR, independently per repo. Pass args:
+UAT → code review (debate loop back to the implementer) → draft PR, independently
+per repo. Pass args:
 
 ```text
 Run /multi-repo-feature with { "task": "add a /readyz probe and wire it into the
