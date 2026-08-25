@@ -204,7 +204,7 @@
           {
             "type": "prompt",
             "statusMessage": "Checking the change resolves the findings...",
-            "prompt": "Completion gate. If the conversation surfaced code/infra findings to fix, allow stopping ONLY when each is shown RESOLVED with evidence (build exits 0, error gone, UAT passes); else decision:block naming the unresolved finding(s). No findings: allow. Loop guard: if a finding stalled 3+ turns or needs a human/manual gate, allow and state what remains. Input: $ARGUMENTS"
+            "prompt": "Completion gate. If the conversation surfaced code/infra findings to fix, allow stopping ONLY when each is shown RESOLVED with evidence (build exits 0, error gone, UAT passes); else decision:block naming the unresolved finding(s). No findings: allow. Loop guard: if a finding stalled 1+ turn or needs a human/manual gate, allow and state what remains. Input: $ARGUMENTS"
           }
         ]
       }
