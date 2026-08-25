@@ -4,6 +4,9 @@
   },
   "permissions": {
     "allow": [
+      "Edit",
+      "Write",
+      "NotebookEdit",
       "Bash(aws * batch-get-*)",
       "Bash(aws * describe-*)",
       "Bash(aws * get-*)",
@@ -179,7 +182,8 @@
       "Bash(terraform import:*)",
       "Bash(terraform state mv:*)",
       "Bash(terraform state rm:*)"
-    ]
+    ],
+    "defaultMode": "default"
   },
   "hooks": {
     "PreToolUse": [
