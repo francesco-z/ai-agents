@@ -1,0 +1,16 @@
+{
+  "colorScheme": "dark",
+  "model": "Claude Opus 4.6 (Thinking)",
+  "permissions": {
+    "allow": [
+      "command(git add)"
+    ]
+  },
+  "trustedWorkspaces": [
+    "/home/francesco",
+    "/home/francesco/git/infocert/gateway-api-istio",
+    "/home/francesco/git/valbruna/camunda-platform-values",
+    "/home/francesco/git/github/ai-agents",
+    "/home/francesco/git/infocert/k8s-plumber-ci"
+  ]
+}
