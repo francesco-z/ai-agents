@@ -28,6 +28,17 @@ repositories.
 | Workflow | `/multi-repo-feature` | plan → implement (parallel) → UAT → code review (debate loop) → draft PR, per repo |
 | Workflow | `/troubleshoot-fanout` | parallel hypotheses → adversarial cross-check → root cause + proposed fix |
 | MCP | `github` | Official remote GitHub MCP (issues, PRs, code search) |
+| Style | `AGENTS.md` | Vendor-neutral response/code conventions (terse output, minimal comments) |
+
+### Agent conventions (`AGENTS.md`)
+
+`AGENTS.md` is the single source of truth for how agents should answer and write
+code here: no preamble or tool narration, one compact `↳ read: … · ran: …`
+reference line per tool-using turn, comments only for non-obvious *why*.
+`CLAUDE.md` and `GEMINI.md` are symlinks to it, so Claude Code, Gemini CLI and
+Antigravity all read the same rules. `make install` copies it to
+`~/.claude/CLAUDE.md` and `~/.gemini/{GEMINI,AGENTS}.md` (any pre-existing file
+it didn't write is backed up to `*.bak` first).
 
 ## Setup
 
