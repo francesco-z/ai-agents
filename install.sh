@@ -44,6 +44,29 @@ jq --slurpfile add "$SRC/settings.json" '
 ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
 echo "    enabled agent teams + merged manual-gate permissions + goal hooks in settings.json"
 
+# ---- Install the shared style/conventions file for every agent, every repo ----
+# AGENTS.md is the single source of truth; Claude reads CLAUDE.md, Gemini and
+# Antigravity read GEMINI.md/AGENTS.md. Anything already there that we did not
+# write is backed up rather than clobbered.
+STYLE_SRC="$REPO_DIR/AGENTS.md"
+MARKER="managed-by: francesco-z/ai-agents"
+
+install_style() { # install_style <target-path>
+  local target="$1"
+  mkdir -p "$(dirname "$target")"
+  if [ -e "$target" ] && ! grep -q "$MARKER" "$target" 2>/dev/null; then
+    cp "$target" "$target.bak"
+    echo "    NOTE: backed up your existing $(basename "$target") to $target.bak"
+  fi
+  cp "$STYLE_SRC" "$target"
+  echo "    installed $target"
+}
+
+install_style "$DEST/CLAUDE.md"
+GEMINI_DEST="${GEMINI_CONFIG_DIR:-$HOME/.gemini}"
+install_style "$GEMINI_DEST/GEMINI.md"
+install_style "$GEMINI_DEST/AGENTS.md"
+
 # ---- Register the GitHub MCP server at USER scope (token sourced at runtime) ----
 # Note: `claude mcp list` is cwd-sensitive (it includes project .mcp.json), so we
 # force a user-scope add and tolerate "already exists" on re-runs.
