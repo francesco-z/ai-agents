@@ -53,19 +53,19 @@ export NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1}" no_proxy="${NO_PROXY:-loc
 [ -n "${CONFLUENCE_URL:-}${JIRA_URL:-}" ] || { echo "$ENV_FILE sets neither CONFLUENCE_URL nor JIRA_URL" >&2; exit 2; }
 
 PKG="mcp-atlassian${MCP_ATLASSIAN_VERSION:+==$MCP_ATLASSIAN_VERSION}"
-case "${ATLASSIAN_MCP_RUNTIME:-uvx}" in
+case "${ATLASSIAN_MCP_RUNTIME:-podman}" in
   uvx)
     EXTRA=()
     [ -n "${ATLASSIAN_SOCKS_PROXY:-}" ] && EXTRA+=(--with "requests[socks]")
     exec uvx ${EXTRA[@]+"${EXTRA[@]}"} --from "$PKG" mcp-atlassian
     ;;
-  docker)
+  podman)
     # --network host so a SOCKS tunnel on localhost is reachable from the container.
-    exec docker run --rm -i --network host --env-file "$ENV_FILE" \
+    exec podman run --rm -i --network host --env-file "$ENV_FILE" \
       -e READ_ONLY_MODE -e ENABLED_TOOLS \
       -e SOCKS_PROXY -e ALL_PROXY -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
       "ghcr.io/sooperset/mcp-atlassian:${MCP_ATLASSIAN_VERSION:-latest}"
     ;;
   *)
-    echo "unknown ATLASSIAN_MCP_RUNTIME='$ATLASSIAN_MCP_RUNTIME' (uvx|docker)" >&2; exit 2 ;;
+    echo "unknown ATLASSIAN_MCP_RUNTIME='$ATLASSIAN_MCP_RUNTIME' (uvx|podman)" >&2; exit 2 ;;
 esac
