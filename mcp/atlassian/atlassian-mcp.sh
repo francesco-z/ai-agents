@@ -72,7 +72,7 @@ case "${ATLASSIAN_MCP_RUNTIME:-podman}" in
     fi
     # --network host so a SOCKS tunnel on localhost is reachable from the container.
     exec podman run --rm -i --network host --env-file "$ENV_FILE" \
-      -e READ_ONLY_MODE -e ENABLED_TOOLS \
+      -e READ_ONLY_MODE -e ENABLED_TOOLS -e FASTMCP_CHECK_FOR_UPDATES=off \
       -e "NO_PROXY=$NO_PROXY_VAL" -e "no_proxy=$NO_PROXY_VAL" \
       ${PROXY_ARGS[@]+"${PROXY_ARGS[@]}"} \
       "ghcr.io/sooperset/mcp-atlassian:${MCP_ATLASSIAN_VERSION:-latest}"
