@@ -1,0 +1,44 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "github-mcp",
+      "trust": false
+    },
+    "atlassian_dc": {
+      "command": "atlassian-mcp",
+      "args": ["onprem"],
+      "trust": false
+    },
+    "atlassian_cloud": {
+      "command": "atlassian-mcp",
+      "args": ["cloud"],
+      "trust": false
+    },
+    "atlassian_rovo": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v2/mcp"],
+      "trust": false,
+      "excludeTools": [
+        "createJiraIssue", "editJiraIssue", "deleteJiraIssue", "transitionJiraIssue",
+        "addOrEditJiraIssueComment", "deleteJiraComment", "addOrEditJiraIssueWorklog",
+        "createJiraIssueLink", "manageJiraProjectVersion", "manageJiraProjectVersionRelatedWork",
+        "manageJiraSprint", "createJiraBoard", "watchJiraIssue", "uploadAttachmentToJiraIssue",
+        "editJiraEntityProperty", "deleteJiraIssueAttachment", "createJiraProject", "updateJiraProject",
+        "createConfluenceContent", "updateConfluenceContent", "createConfluenceSpace",
+        "setConfluenceSpaceInstructions", "copyConfluenceContent", "moveConfluenceContent",
+        "archiveConfluenceContent", "unarchiveConfluenceContent", "restoreConfluenceContentVersion",
+        "convertConfluenceContentMode", "setConfluenceContentStatus", "createConfluenceComment",
+        "updateConfluenceComment", "updateConfluenceCommentResolution", "createConfluenceAttachment",
+        "addLabelsToConfluenceContent", "addConfluenceReaction", "addConfluenceContentPermissions",
+        "removeConfluenceContentPermissions", "replaceConfluenceContentPermissions",
+        "setConfluenceContentRestrictionState", "enableConfluencePublicLink",
+        "disableConfluencePublicLink", "completeConfluenceTask", "reopenConfluenceTask",
+        "starConfluenceContent", "unstarConfluenceContent", "starConfluenceSpace",
+        "unstarConfluenceSpace", "watchConfluenceContent", "unwatchConfluenceContent",
+        "watchConfluenceSpace", "unwatchConfluenceSpace", "watchConfluenceLabel",
+        "unwatchConfluenceLabel", "addTeamworkGraphContext",
+        "executeWrite", "executeDestructive"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_MCP_TOKEN}"
+      }
+    },
+    "atlassian_dc": {
+      "type": "stdio",
+      "command": "atlassian-mcp",
+      "args": ["onprem"]
+    },
+    "atlassian_cloud": {
+      "type": "stdio",
+      "command": "atlassian-mcp",
+      "args": ["cloud"]
+    },
+    "atlassian_rovo": {
+      "type": "http",
+      "url": "https://mcp.atlassian.com/v2/mcp"
+    }
+  }
+}

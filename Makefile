@@ -17,6 +17,7 @@ uninstall:
 	         go-development python-scripting uat-testing multi-repo-workflow; do \
 	  rm -rf $$DEST/skills/$$s; done; \
 	rm -f $$DEST/workflows/multi-repo-feature.js $$DEST/workflows/troubleshoot-fanout.js; \
+	rm -f $$HOME/.local/bin/atlassian-mcp $$HOME/.local/bin/github-mcp; \
 	GDEST="$${GEMINI_CONFIG_DIR:-$$HOME/.gemini}"; \
 	for f in $$DEST/CLAUDE.md $$GDEST/GEMINI.md $$GDEST/AGENTS.md; do \
 	  grep -q 'managed-by: francesco-z/ai-agents' $$f 2>/dev/null && rm -f $$f && echo "  removed $$f" || true; done; \

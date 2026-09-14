@@ -67,21 +67,63 @@ GEMINI_DEST="${GEMINI_CONFIG_DIR:-$HOME/.gemini}"
 install_style "$GEMINI_DEST/GEMINI.md"
 install_style "$GEMINI_DEST/AGENTS.md"
 
-# ---- Register the GitHub MCP server at USER scope (token sourced at runtime) ----
-# Note: `claude mcp list` is cwd-sensitive (it includes project .mcp.json), so we
-# force a user-scope add and tolerate "already exists" on re-runs.
+# ---- Put the MCP launchers on PATH for every MCP client ---------------------
+# Client configs reference the bare names, so Claude, Codex, Gemini and the rest
+# all share one implementation. See mcp/README.md.
+mkdir -p "$HOME/.local/bin"
+ln -sf "$REPO_DIR/mcp/atlassian/atlassian-mcp.sh" "$HOME/.local/bin/atlassian-mcp"
+ln -sf "$REPO_DIR/mcp/github/github-mcp.sh"       "$HOME/.local/bin/github-mcp"
+echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp}"
+
+# ---- Install the MCP servers each client is ready to use ---------------------
+# The configs are checked in at the path each client expects — .claude/mcp.json,
+# .gemini/config/mcp_config.json, .codex/config.toml — and installed as-is. Each
+# client has its own schema, so the three are maintained side by side; keep them
+# in step when you add a server. See mcp/README.md.
+CLAUDE_MCP="$SRC/mcp.json"
+PROFILE_DIR="${ATLASSIAN_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/atlassian-mcp}"
+
+# A launcher-backed server is only installed once its profile exists, so a
+# half-configured customer never leaves a server that fails at spawn.
+SKIP=""
+for name in $(jq -r '.mcpServers | keys[]' "$CLAUDE_MCP"); do
+  [ "$(jq -r --arg n "$name" '.mcpServers[$n].command // ""' "$CLAUDE_MCP")" = "atlassian-mcp" ] || continue
+  profile="$(jq -r --arg n "$name" '.mcpServers[$n].args[0] // ""' "$CLAUDE_MCP")"
+  [ -f "$PROFILE_DIR/$profile.env" ] || SKIP="$SKIP $name"
+done
+
+# Claude Code: user scope, one add per server. Re-adding rather than adding
+# keeps re-runs idempotent.
 if command -v claude >/dev/null 2>&1; then
-  GH_JSON='{"type":"http","url":"https://api.githubcopilot.com/mcp/","headers":{"Authorization":"Bearer ${GITHUB_MCP_TOKEN}"}}'
-  if claude mcp add-json -s user github "$GH_JSON" 2>/dev/null; then
-    echo "    registered github MCP (user scope)"
-  else
-    claude mcp remove github -s user >/dev/null 2>&1 \
-      && claude mcp add-json -s user github "$GH_JSON" >/dev/null 2>&1 \
-      && echo "    re-registered github MCP (user scope)" \
-      || echo "    NOTE: github MCP add reported it already exists at user scope (ok)"
-  fi
+  for name in $(jq -r '.mcpServers | keys[]' "$CLAUDE_MCP"); do
+    case " $SKIP " in
+      *" $name "*) echo "    skipped $name (no profile in $PROFILE_DIR)"; continue ;;
+    esac
+    claude mcp remove "$name" -s user >/dev/null 2>&1 || true
+    claude mcp add-json -s user "$name" "$(jq -c --arg n "$name" '.mcpServers[$n]' "$CLAUDE_MCP")" >/dev/null 2>&1 \
+      && echo "    registered $name (claude, user scope)" \
+      || echo "    NOTE: could not register $name at user scope"
+  done
 else
-  echo "    NOTE: 'claude' CLI not on PATH — github MCP not registered. See README."
+  echo "    NOTE: 'claude' CLI not on PATH — MCP servers not registered. See mcp/README.md."
+fi
+
+# Antigravity / Gemini CLI: merged, not copied, so servers you added by hand survive.
+GEM_MCP="${GEMINI_CONFIG_DIR:-$HOME/.gemini}/config/mcp_config.json"
+mkdir -p "$(dirname "$GEM_MCP")"
+[ -s "$GEM_MCP" ] || echo '{}' > "$GEM_MCP"
+TMP="$(mktemp)"
+jq --arg skip " $SKIP " --slurpfile add "$REPO_DIR/.gemini/config/mcp_config.json" '
+  .mcpServers = ((.mcpServers // {}) + (
+    $add[0].mcpServers
+    | with_entries(.key as $k | select($skip | contains(" " + $k + " ") | not))))' "$GEM_MCP" > "$TMP"
+mv "$TMP" "$GEM_MCP"
+echo "    merged $GEM_MCP"
+
+# Codex: TOML has no merge tool, so append once and leave later edits alone.
+if [ -d "$HOME/.codex" ] && ! grep -q '^\[mcp_servers\.github\]' "$HOME/.codex/config.toml" 2>/dev/null; then
+  cat "$REPO_DIR/.codex/config.toml" >> "$HOME/.codex/config.toml"
+  echo "    appended MCP servers to ~/.codex/config.toml"
 fi
 
 cat <<'EOF'
