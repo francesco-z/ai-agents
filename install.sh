@@ -46,8 +46,8 @@ echo "    enabled agent teams + merged manual-gate permissions + goal hooks in s
 
 # ---- Install the shared style/conventions file for every agent, every repo ----
 # AGENTS.md is the single source of truth; Claude reads CLAUDE.md, Gemini and
-# Antigravity read GEMINI.md/AGENTS.md. Anything already there that we did not
-# write is backed up rather than clobbered.
+# Antigravity read GEMINI.md/AGENTS.md, Codex reads AGENTS.md. Anything already
+# there that we did not write is backed up rather than clobbered.
 STYLE_SRC="$REPO_DIR/AGENTS.md"
 MARKER="managed-by: francesco-z/ai-agents"
 
@@ -66,6 +66,7 @@ install_style "$DEST/CLAUDE.md"
 GEMINI_DEST="${GEMINI_CONFIG_DIR:-$HOME/.gemini}"
 install_style "$GEMINI_DEST/GEMINI.md"
 install_style "$GEMINI_DEST/AGENTS.md"
+install_style "${CODEX_HOME:-$HOME/.codex}/AGENTS.md"
 
 # ---- Put the MCP launchers on PATH for every MCP client ---------------------
 # Client configs reference the bare names, so Claude, Codex, Gemini and the rest
