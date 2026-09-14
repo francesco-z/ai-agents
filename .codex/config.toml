@@ -1,0 +1,25 @@
+# Appended to ~/.codex/config.toml by install.sh, verbatim — unlike the other
+# clients there is no merge step, so delete the blocks whose Atlassian profile
+# you have not created, or Codex will report those servers as failing.
+# Codex is stdio-only on most builds and does not expand ${VAR} in config, so
+# both remote servers go through a local command: github-mcp reads
+# $GITHUB_MCP_TOKEN at spawn time, and Rovo goes through the mcp-remote bridge.
+
+[mcp_servers.github]
+command = "github-mcp"
+startup_timeout_sec = 60
+
+[mcp_servers.atlassian_dc]
+command = "atlassian-mcp"
+args = ["onprem"]
+startup_timeout_sec = 30
+
+[mcp_servers.atlassian_cloud]
+command = "atlassian-mcp"
+args = ["cloud"]
+startup_timeout_sec = 30
+
+[mcp_servers.atlassian_rovo]
+command = "npx"
+args = ["-y", "mcp-remote", "https://mcp.atlassian.com/v2/mcp"]
+startup_timeout_sec = 60

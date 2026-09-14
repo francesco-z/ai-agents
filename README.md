@@ -28,6 +28,7 @@ repositories.
 | Workflow | `/multi-repo-feature` | plan → implement (parallel) → UAT → code review (debate loop) → draft PR, per repo |
 | Workflow | `/troubleshoot-fanout` | parallel hypotheses → adversarial cross-check → root cause + proposed fix |
 | MCP | `github` | Official remote GitHub MCP (issues, PRs, code search) |
+| MCP | `atlassian_*` | Read-only Confluence/Jira — Cloud and on-prem DC behind a VPN ([`mcp/`](mcp/README.md)) |
 | Style | `AGENTS.md` | Vendor-neutral response/code conventions (terse output, minimal comments) |
 
 ### Agent conventions (`AGENTS.md`)
