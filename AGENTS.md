@@ -3,8 +3,8 @@
 # Agent conventions
 
 Vendor-neutral instructions for any coding agent working in this repo (and, once
-`make install` has run, in every repo). `CLAUDE.md` and `GEMINI.md` are symlinks
-to this file.
+`make install` has run, in every repo). This file is the only copy in the repo;
+`make install` writes it out under each vendor's expected name.
 
 ## Response style
 

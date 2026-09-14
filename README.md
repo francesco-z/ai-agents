@@ -36,10 +36,11 @@ repositories.
 `AGENTS.md` is the single source of truth for how agents should answer and write
 code here: no preamble or tool narration, one compact `↳ read: … · ran: …`
 reference line per tool-using turn, comments only for non-obvious *why*.
-`CLAUDE.md` and `GEMINI.md` are symlinks to it, so Claude Code, Gemini CLI and
-Antigravity all read the same rules. `make install` copies it to
-`~/.claude/CLAUDE.md` and `~/.gemini/{GEMINI,AGENTS}.md` (any pre-existing file
-it didn't write is backed up to `*.bak` first).
+It is the only copy kept in the repo: `make install` writes it out under each
+vendor's expected name — `~/.claude/CLAUDE.md`, `~/.gemini/{GEMINI,AGENTS}.md`
+and `~/.codex/AGENTS.md` — so Claude Code, Gemini CLI, Antigravity and Codex all
+read the same rules in every repo (any pre-existing file it didn't write is
+backed up to `*.bak` first).
 
 ## Setup
 

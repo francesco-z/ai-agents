@@ -19,7 +19,8 @@ uninstall:
 	rm -f $$DEST/workflows/multi-repo-feature.js $$DEST/workflows/troubleshoot-fanout.js; \
 	rm -f $$HOME/.local/bin/atlassian-mcp $$HOME/.local/bin/github-mcp; \
 	GDEST="$${GEMINI_CONFIG_DIR:-$$HOME/.gemini}"; \
-	for f in $$DEST/CLAUDE.md $$GDEST/GEMINI.md $$GDEST/AGENTS.md; do \
+	XDEST="$${CODEX_HOME:-$$HOME/.codex}"; \
+	for f in $$DEST/CLAUDE.md $$GDEST/GEMINI.md $$GDEST/AGENTS.md $$XDEST/AGENTS.md; do \
 	  grep -q 'managed-by: francesco-z/ai-agents' $$f 2>/dev/null && rm -f $$f && echo "  removed $$f" || true; done; \
 	echo "Removed installed components from $$DEST (settings.json left untouched)."
 
