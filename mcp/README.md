@@ -95,10 +95,10 @@ tunnel, vs Atlassian's cloud). That last one is why Rovo can never serve DC.
 | Jira issues / JQL | `/rest/api/2/issue/{key}`, `/rest/api/2/search` | `/rest/api/3/…` (ADF bodies) |
 | Jira agile | `/rest/agile/1.0/board/…` | same |
 | Confluence content / CQL | `/rest/api/content`, `/rest/api/content/search` | `/wiki/api/v2/pages`, `/wiki/rest/api/…` |
-| Auth header | `Authorization: Bearer <PAT>` | `Basic base64(email:token)` or OAuth |
+| Auth header | `Authorization: Basic base64(user:password)` | `Basic base64(email:token)` or OAuth |
 
-Jira DC 9.12.x (LTS) and Confluence DC 9.2.x need nothing special: PATs have
-existed since Jira 8.14 and the `/rest/api/2` surface is unchanged.
+Jira DC 9.12.x (LTS) and Confluence DC 9.2.x need nothing special: basic auth
+against dedicated read-only service accounts and the `/rest/api/2` surface is unchanged.
 
 ## Setup
 
@@ -126,8 +126,8 @@ atlassian-mcp onprem   # should start and print nothing; Ctrl-C to stop
 ## Version independence
 
 The launcher never names an API version. `mcp-atlassian` detects Cloud vs
-Server/DC from the URL and the fact that `*_PERSONAL_TOKEN` is set rather than
-username + API token, then picks the right REST API per product (see the table
+Server/DC from the URL and the auth style — username + password (DC) vs
+username + API token (Cloud) — then picks the right REST API per product (see the table
 above) — so **the tool names and arguments are identical** on DC and on Cloud.
 That is what makes one profile format cover both. Never set both auth styles in
 one profile. Pin the server build per customer with `MCP_ATLASSIAN_VERSION=` if
@@ -137,8 +137,8 @@ you want reproducibility.
 
 Least trusted last — the model is the last line, not the first.
 
-1. **The Atlassian account.** The PAT (DC) or API token (Cloud) belongs to a
-   read-only user. On Cloud, use a *scoped* token with read scopes only. Nothing
+1. **The Atlassian account.** The service account (DC) or API token (Cloud) is
+   read-only. On Cloud, use a *scoped* token with read scopes only. Nothing
    below matters if this is wrong.
 2. **Tool filter** — `ENABLED_TOOLS` in `atlassian-mcp.sh` lists only read tools,
    so write tools are never advertised to the model at all.
