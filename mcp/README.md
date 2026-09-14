@@ -165,7 +165,7 @@ the tunnel — with plain `socks5://` the private Confluence hostname is resolve
 locally and fails. It also pulls in `requests[socks]` so the SOCKS transport is
 actually available, and sets `NO_PROXY` for loopback.
 
-With `ATLASSIAN_MCP_RUNTIME=docker` the container runs with `--network host` so
+With `ATLASSIAN_MCP_RUNTIME=podman` the container runs with `--network host` so
 `localhost:9999` still refers to your tunnel.
 
 Caveats worth knowing:
