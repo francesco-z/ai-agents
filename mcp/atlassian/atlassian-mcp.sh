@@ -39,31 +39,42 @@ jira_batch_get_changelogs,jira_download_attachments"
 export ENABLED_TOOLS="${ENABLED_TOOLS:-$READONLY_TOOLS}"
 export READ_ONLY_MODE=true   # second latch: mutating calls are refused even if enabled
 
-# ---- VPN: force remote DNS so the private hostname resolves inside the tunnel -
+PROXY=""
 if [ -n "${ATLASSIAN_SOCKS_PROXY:-}" ]; then
   case "$ATLASSIAN_SOCKS_PROXY" in
     socks5://*) PROXY="socks5h://${ATLASSIAN_SOCKS_PROXY#socks5://}" ;;
     *)          PROXY="$ATLASSIAN_SOCKS_PROXY" ;;
   esac
-  export SOCKS_PROXY="$PROXY" ALL_PROXY="$PROXY" all_proxy="$PROXY"
-  export HTTP_PROXY="$PROXY" HTTPS_PROXY="$PROXY" http_proxy="$PROXY" https_proxy="$PROXY"
 fi
-export NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1}" no_proxy="${NO_PROXY:-localhost,127.0.0.1,::1}"
+NO_PROXY_VAL="${NO_PROXY:-localhost,127.0.0.1,::1}"
 
 [ -n "${CONFLUENCE_URL:-}${JIRA_URL:-}" ] || { echo "$ENV_FILE sets neither CONFLUENCE_URL nor JIRA_URL" >&2; exit 2; }
 
 PKG="mcp-atlassian${MCP_ATLASSIAN_VERSION:+==$MCP_ATLASSIAN_VERSION}"
 case "${ATLASSIAN_MCP_RUNTIME:-podman}" in
   uvx)
+    if [ -n "$PROXY" ]; then
+      export SOCKS_PROXY="$PROXY" ALL_PROXY="$PROXY" all_proxy="$PROXY"
+      export HTTP_PROXY="$PROXY" HTTPS_PROXY="$PROXY" http_proxy="$PROXY" https_proxy="$PROXY"
+    fi
+    export NO_PROXY="$NO_PROXY_VAL" no_proxy="$NO_PROXY_VAL"
     EXTRA=()
     [ -n "${ATLASSIAN_SOCKS_PROXY:-}" ] && EXTRA+=(--with "requests[socks]")
     exec uvx ${EXTRA[@]+"${EXTRA[@]}"} --from "$PKG" mcp-atlassian
     ;;
   podman)
+    PROXY_ARGS=()
+    if [ -n "$PROXY" ]; then
+      PROXY_ARGS=(
+        -e "SOCKS_PROXY=$PROXY" -e "ALL_PROXY=$PROXY" -e "all_proxy=$PROXY"
+        -e "HTTP_PROXY=$PROXY" -e "HTTPS_PROXY=$PROXY" -e "http_proxy=$PROXY" -e "https_proxy=$PROXY"
+      )
+    fi
     # --network host so a SOCKS tunnel on localhost is reachable from the container.
     exec podman run --rm -i --network host --env-file "$ENV_FILE" \
       -e READ_ONLY_MODE -e ENABLED_TOOLS \
-      -e SOCKS_PROXY -e ALL_PROXY -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
+      -e "NO_PROXY=$NO_PROXY_VAL" -e "no_proxy=$NO_PROXY_VAL" \
+      ${PROXY_ARGS[@]+"${PROXY_ARGS[@]}"} \
       "ghcr.io/sooperset/mcp-atlassian:${MCP_ATLASSIAN_VERSION:-latest}"
     ;;
   *)
