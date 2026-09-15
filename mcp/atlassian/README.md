@@ -5,13 +5,11 @@
 .gemini/config/mcp_config.json   that client expects; install.sh copies them in
 .codex/config.toml
 mcp/
-├── atlassian/            ← launcher + profile examples (read-only Confluence/Jira)
-└── github/               ← launcher (stdio bridge for clients without HTTP)
+└── atlassian/            ← launcher + profile examples (read-only Confluence/Jira)
 ```
 
 | Server | Reaches | Transport | Secrets from |
 | --- | --- | --- | --- |
-| `github` | github.com | HTTPS (stdio bridge on Codex/Antigravity) | `$GITHUB_MCP_TOKEN` |
 | `atlassian_dc` | Confluence/Jira **Server or Data Center**, incl. behind a VPN | stdio launcher | `~/.config/atlassian-mcp/onprem.env` |
 | `atlassian_cloud` | Atlassian **Cloud**, via the same self-hosted server | stdio launcher | `~/.config/atlassian-mcp/cloud.env` |
 | `atlassian_rovo` | Atlassian **Cloud**, via Atlassian's official Rovo MCP | HTTPS, OAuth 2.1 | Atlassian's own login |
@@ -37,8 +35,7 @@ that works on every build, instead of betting on which remote-URL key a given
 version accepts. Claude Code keeps native HTTP.
 
 Everything is registered at **user scope**, so there is no project `.mcp.json` in
-this repo — it would only duplicate the user-scope `github` entry for sessions
-started here. For Claude and Gemini, a launcher-backed server is skipped until
+this repo. For Claude and Gemini, a launcher-backed server is skipped until
 its profile exists in `~/.config/atlassian-mcp/`, so a half-configured customer
 never registers a server that fails at spawn; Codex is a verbatim append, so
 prune those blocks yourself.
@@ -46,7 +43,7 @@ prune those blocks yourself.
 Two rules keep the rest portable:
 
 1. **No secrets in a committed config.** Tokens come from the environment
-   (`$GITHUB_MCP_TOKEN`) or a `chmod 600` profile file outside the repo.
+   or a `chmod 600` profile file outside the repo.
 2. **Anything with logic goes in a launcher on `PATH`**, not in client config —
    proxies, read-only enforcement, auth selection, header injection. Every
    client can spawn a command; almost none can express those. `install.sh` links
