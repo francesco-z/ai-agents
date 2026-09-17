@@ -39,6 +39,28 @@
         "unwatchConfluenceLabel", "addTeamworkGraphContext",
         "executeWrite", "executeDestructive"
       ]
+    },
+    "gitlab_onprem": {
+      "command": "gitlab-mcp",
+      "args": ["onprem"],
+      "trust": false,
+      "excludeTools": [
+        "add_commit", "create_issue", "save_merge_request", "save_note",
+        "save_merge_request_review", "accept_merge_request", "add_branch",
+        "fork_repository", "save_pipeline", "manage_pipeline", "save_vulnerability",
+        "save_work_item", "link_work_items", "attach_scan_profile"
+      ]
+    },
+    "gitlab_cloud": {
+      "command": "gitlab-mcp",
+      "args": ["cloud"],
+      "trust": false,
+      "excludeTools": [
+        "add_commit", "create_issue", "save_merge_request", "save_note",
+        "save_merge_request_review", "accept_merge_request", "add_branch",
+        "fork_repository", "save_pipeline", "manage_pipeline", "save_vulnerability",
+        "save_work_item", "link_work_items", "attach_scan_profile"
+      ]
     }
   }
 }

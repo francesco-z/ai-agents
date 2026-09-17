@@ -20,6 +20,16 @@
     "atlassian_rovo": {
       "type": "http",
       "url": "https://mcp.atlassian.com/v2/mcp"
+    },
+    "gitlab_onprem": {
+      "type": "stdio",
+      "command": "gitlab-mcp",
+      "args": ["onprem"]
+    },
+    "gitlab_cloud": {
+      "type": "stdio",
+      "command": "gitlab-mcp",
+      "args": ["cloud"]
     }
   }
 }
