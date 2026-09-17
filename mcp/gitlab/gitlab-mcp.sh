@@ -56,12 +56,13 @@ if [ -n "${GITLAB_PERSONAL_TOKEN:-}" ]; then
   HEADER_ARGS+=(--header "Authorization: Bearer $GITLAB_PERSONAL_TOKEN")
 fi
 
-case "${GITLAB_MCP_RUNTIME:-npx}" in
+IMAGE="${GITLAB_MCP_IMAGE:-docker.io/node:20-alpine}"
+case "${GITLAB_MCP_RUNTIME:-podman}" in
   npx)
     exec npx -y mcp-remote "${GITLAB_MCP_ENDPOINT}" ${HEADER_ARGS[@]+"${HEADER_ARGS[@]}"}
     ;;
   podman|docker)
-    CONTAINER_BIN="${GITLAB_MCP_RUNTIME}"
+    CONTAINER_BIN="${GITLAB_MCP_RUNTIME:-podman}"
     PROXY_ARGS=()
     if [ -n "$PROXY" ]; then
       PROXY_ARGS=(
@@ -72,9 +73,9 @@ case "${GITLAB_MCP_RUNTIME:-npx}" in
     exec "$CONTAINER_BIN" run --rm -i --network host --env-file "$ENV_FILE" \
       -e "NO_PROXY=$NO_PROXY_VAL" -e "no_proxy=$NO_PROXY_VAL" \
       ${PROXY_ARGS[@]+"${PROXY_ARGS[@]}"} \
-      docker.io/node:20-alpine \
+      "$IMAGE" \
       npx -y mcp-remote "${GITLAB_MCP_ENDPOINT}" ${HEADER_ARGS[@]+"${HEADER_ARGS[@]}"}
     ;;
   *)
-    echo "unknown GITLAB_MCP_RUNTIME='$GITLAB_MCP_RUNTIME' (npx|podman|docker)" >&2; exit 2 ;;
+    echo "unknown GITLAB_MCP_RUNTIME='$GITLAB_MCP_RUNTIME' (podman|docker|npx)" >&2; exit 2 ;;
 esac

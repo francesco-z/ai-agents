@@ -13,7 +13,8 @@ The launcher connects to the official GitLab MCP endpoint (`/api/v4/mcp`) using 
 
 - **On-Prem & Cloud unified**: Uses the same launcher and profile structure.
 - **Upgrades & Version Independence**: GitLab introduced native MCP support at `/api/v4/mcp` (experiment in 18.3, beta in 18.6+, default tool prefixing in 18.11). On 17.3, OAuth Dynamic Client Registration exists; as soon as the instance upgrades to 18.x+, the endpoint works seamlessly without client-side reconfiguration.
-- **SOCKS5 / VPN Support**: `GITLAB_SOCKS_PROXY=socks5://localhost:9999` is automatically converted to `socks5h://` so hostnames resolve inside the tunnel.
+- **Default Runtime**: Uses `podman` by default running `docker.io/node:20-alpine` with `npx -y mcp-remote` inside the container (configurable with `GITLAB_MCP_IMAGE` or switched to local `npx` / `docker` via `GITLAB_MCP_RUNTIME`).
+- **SOCKS5 / VPN Support**: `GITLAB_SOCKS_PROXY=socks5://localhost:9999` is automatically converted to `socks5h://` so hostnames resolve inside the tunnel (`--network host` is used in container runtimes).
 - **Tool Prefixing**: Set `GITLAB_TOOL_PREFIX=gitlab_` to avoid conflicts with other tools.
 
 ## Setup
