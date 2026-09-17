@@ -74,7 +74,8 @@ install_style "${CODEX_HOME:-$HOME/.codex}/AGENTS.md"
 mkdir -p "$HOME/.local/bin"
 ln -sf "$REPO_DIR/mcp/atlassian/atlassian-mcp.sh" "$HOME/.local/bin/atlassian-mcp"
 ln -sf "$REPO_DIR/mcp/github/github-mcp.sh"       "$HOME/.local/bin/github-mcp"
-echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp}"
+ln -sf "$REPO_DIR/mcp/gitlab/gitlab-mcp.sh"       "$HOME/.local/bin/gitlab-mcp"
+echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp,gitlab-mcp}"
 
 # ---- Install the MCP servers each client is ready to use ---------------------
 # The configs are checked in at the path each client expects — .claude/mcp.json,
@@ -83,14 +84,20 @@ echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp}"
 # in step when you add a server. See mcp/README.md.
 CLAUDE_MCP="$SRC/mcp.json"
 PROFILE_DIR="${ATLASSIAN_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/atlassian-mcp}"
+GITLAB_PROFILE_DIR="${GITLAB_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gitlab-mcp}"
 
 # A launcher-backed server is only installed once its profile exists, so a
 # half-configured customer never leaves a server that fails at spawn.
 SKIP=""
 for name in $(jq -r '.mcpServers | keys[]' "$CLAUDE_MCP"); do
-  [ "$(jq -r --arg n "$name" '.mcpServers[$n].command // ""' "$CLAUDE_MCP")" = "atlassian-mcp" ] || continue
-  profile="$(jq -r --arg n "$name" '.mcpServers[$n].args[0] // ""' "$CLAUDE_MCP")"
-  [ -f "$PROFILE_DIR/$profile.env" ] || SKIP="$SKIP $name"
+  cmd="$(jq -r --arg n "$name" '.mcpServers[$n].command // ""' "$CLAUDE_MCP")"
+  if [ "$cmd" = "atlassian-mcp" ]; then
+    profile="$(jq -r --arg n "$name" '.mcpServers[$n].args[0] // ""' "$CLAUDE_MCP")"
+    [ -f "$PROFILE_DIR/$profile.env" ] || SKIP="$SKIP $name"
+  elif [ "$cmd" = "gitlab-mcp" ]; then
+    profile="$(jq -r --arg n "$name" '.mcpServers[$n].args[0] // ""' "$CLAUDE_MCP")"
+    [ -f "$GITLAB_PROFILE_DIR/$profile.env" ] || SKIP="$SKIP $name"
+  fi
 done
 
 # Claude Code: user scope, one add per server. Re-adding rather than adding

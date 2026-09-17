@@ -23,3 +23,14 @@ startup_timeout_sec = 30
 command = "npx"
 args = ["-y", "mcp-remote", "https://mcp.atlassian.com/v2/mcp"]
 startup_timeout_sec = 60
+
+[mcp_servers.gitlab_onprem]
+command = "gitlab-mcp"
+args = ["onprem"]
+startup_timeout_sec = 30
+
+[mcp_servers.gitlab_cloud]
+command = "gitlab-mcp"
+args = ["cloud"]
+startup_timeout_sec = 30
+
