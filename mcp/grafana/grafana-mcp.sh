@@ -30,7 +30,12 @@ ARGS=(--disable-write)
 # shellcheck disable=SC2206  # word splitting of the flag list is intended
 [ -n "${GRAFANA_MCP_EXTRA_ARGS:-}" ] && ARGS+=(${GRAFANA_MCP_EXTRA_ARGS})
 
-IMAGE="${GRAFANA_MCP_IMAGE:-docker.io/grafana/mcp-grafana:${MCP_GRAFANA_VERSION:-latest}}"
+# 1.4.0+ speaks MCP 2026-07-28, whose stdio transport deadlocks after
+# subscriptions/listen (grafana/mcp-grafana#1236), so Claude Code times out on
+# tools/list. 1.3.0 predates it and makes clients fall back to initialize.
+# Drop the pin once a release ships mcp-go >= v1.1.1.
+MCP_GRAFANA_VERSION="${MCP_GRAFANA_VERSION:-1.3.0}"
+IMAGE="${GRAFANA_MCP_IMAGE:-docker.io/grafana/mcp-grafana:$MCP_GRAFANA_VERSION}"
 RUNTIME="${GRAFANA_MCP_RUNTIME:-podman}"
 case "$RUNTIME" in
   uvx)

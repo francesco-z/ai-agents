@@ -20,13 +20,28 @@ profile format and one tool vocabulary cover both.
 - **Default runtime**: `podman`, running `docker.io/grafana/mcp-grafana` as in
   [Grafana's Docker setup](https://grafana.com/docs/grafana-cloud/ai-tools/mcp-servers/oss-mcp/set-up/install-with-docker/)
   (`run --rm -i … -t stdio`). `GRAFANA_MCP_RUNTIME=uvx` runs the PyPI package
-  instead (`uvx mcp-grafana`), `docker` works like `podman`. Pin with
-  `MCP_GRAFANA_VERSION=` (image tag / package version) or override the whole
-  image with `GRAFANA_MCP_IMAGE=`.
+  instead (`uvx mcp-grafana`), `docker` works like `podman`. The version comes
+  from `MCP_GRAFANA_VERSION=` (image tag / package version, default `1.3.0`);
+  `GRAFANA_MCP_IMAGE=` overrides the whole image.
 - **SOCKS5 / VPN**: `GRAFANA_SOCKS5_PROXY=socks5://localhost:9999` is native to
   `mcp-grafana` and scoped to its Grafana traffic. Containers run with
   `--network host`, so the tunnel on `localhost` is reachable.
 - **Org**: `GRAFANA_ORG_ID` selects the organization (sent as `X-Grafana-Org-Id`).
+
+## Version pin
+
+The launcher defaults to **1.3.0**. From 1.4.0 the server speaks MCP
+`2026-07-28`, and its stdio transport stops answering after the client opens
+`subscriptions/listen` (mark3labs/mcp-go#976). Claude Code does that
+right after connecting, so it shows `connected · tools fetch failed` (tools/list
+times out). 1.3.0 has no `server/discover`, so clients fall back to the
+`2025-11-25` handshake. Drop the pin once a release includes
+grafana/mcp-grafana#1236 (mcp-go v1.1.1). To run a newer build meanwhile, start
+Claude Code with `MCP_PROTOCOL_NEGOTIATION=legacy` — that downgrades *every* MCP
+server, not just this one.
+
+The remote server in [`helm/`](helm/README.md) is unaffected: the bug is in
+the stdio transport only.
 
 ## Read-only, in three layers
 
