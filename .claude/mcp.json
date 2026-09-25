@@ -30,6 +30,16 @@
       "type": "stdio",
       "command": "gitlab-mcp",
       "args": ["cloud"]
+    },
+    "grafana_onprem": {
+      "type": "stdio",
+      "command": "grafana-mcp",
+      "args": ["onprem"]
+    },
+    "grafana_cloud": {
+      "type": "stdio",
+      "command": "grafana-mcp",
+      "args": ["cloud"]
     }
   }
 }

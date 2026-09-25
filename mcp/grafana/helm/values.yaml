@@ -1,0 +1,69 @@
+# Remote, read-only Grafana MCP server on Kubernetes, streamable HTTP at /mcp.
+#
+#   helm upgrade --install grafana-mcp grafana-community/grafana-mcp \
+#     -n grafana-mcp -f mcp/grafana/helm/values.yaml
+#
+# Both secrets are created out of band (see README.md); nothing secret lives here.
+
+grafana:
+  url: "https://monitoring.internal.acme.example/"
+  apiKeySecret:
+    name: grafana-mcp-grafana-token
+    key: token
+
+env:
+  GRAFANA_ORG_ID: "7"
+
+envValueFrom:
+  # Callers must send Authorization: Bearer <this>; without it the server
+  # accepts anyone who can reach the Service.
+  MCP_GRAFANA_SERVER_TOKEN:
+    secretKeyRef:
+      name: grafana-mcp-server-token
+      key: token
+
+# --disable-write goes here rather than via the chart's disableWrite: the chart
+# only renders disableWrite when some other arg is also set, so relying on it
+# alone silently drops the read-only latch.
+extraArgs:
+  - -t
+  - streamable-http
+  - --disable-write
+  # Host-header allowlist (DNS-rebinding guard). Must list every name callers
+  # use: the ingress host, and the Service name for in-cluster clients.
+  - --allowed-hosts
+  - grafana-mcp.acme.example,grafana-mcp.grafana-mcp.svc:8000,grafana-mcp.grafana-mcp.svc.cluster.local:8000
+
+# tcpSocket, not httpGet: the kubelet's Host header (pod IP) is not in
+# --allowed-hosts, so an HTTP probe on /healthz would get 403.
+readinessProbe:
+  tcpSocket:
+    port: mcp-http
+livenessProbe:
+  tcpSocket:
+    port: mcp-http
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    # Streamable HTTP holds responses open; default buffering/timeouts cut them.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: grafana-mcp.acme.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: grafana-mcp-tls
+      hosts:
+        - grafana-mcp.acme.example
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
