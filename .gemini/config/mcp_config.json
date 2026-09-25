@@ -61,6 +61,28 @@
         "fork_repository", "save_pipeline", "manage_pipeline", "save_vulnerability",
         "save_work_item", "link_work_items", "attach_scan_profile"
       ]
+    },
+    "grafana_onprem": {
+      "command": "grafana-mcp",
+      "args": ["onprem"],
+      "trust": false,
+      "excludeTools": [
+        "update_dashboard", "patch_dashboard", "create_incident", "add_activity_to_incident",
+        "update_incident", "find_error_pattern_logs", "find_slow_requests", "update_alert_group",
+        "create_annotation", "update_annotation", "delete_annotation", "create_snapshot",
+        "delete_snapshot", "ask_assistant"
+      ]
+    },
+    "grafana_cloud": {
+      "command": "grafana-mcp",
+      "args": ["cloud"],
+      "trust": false,
+      "excludeTools": [
+        "update_dashboard", "patch_dashboard", "create_incident", "add_activity_to_incident",
+        "update_incident", "find_error_pattern_logs", "find_slow_requests", "update_alert_group",
+        "create_annotation", "update_annotation", "delete_annotation", "create_snapshot",
+        "delete_snapshot", "ask_assistant"
+      ]
     }
   }
 }

@@ -34,3 +34,13 @@ command = "gitlab-mcp"
 args = ["cloud"]
 startup_timeout_sec = 30
 
+[mcp_servers.grafana_onprem]
+command = "grafana-mcp"
+args = ["onprem"]
+startup_timeout_sec = 30
+
+[mcp_servers.grafana_cloud]
+command = "grafana-mcp"
+args = ["cloud"]
+startup_timeout_sec = 30
+

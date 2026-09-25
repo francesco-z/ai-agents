@@ -17,7 +17,7 @@ uninstall:
 	         go-development python-scripting uat-testing multi-repo-workflow; do \
 	  rm -rf $$DEST/skills/$$s; done; \
 	rm -f $$DEST/workflows/multi-repo-feature.js $$DEST/workflows/troubleshoot-fanout.js; \
-	rm -f $$HOME/.local/bin/atlassian-mcp $$HOME/.local/bin/github-mcp $$HOME/.local/bin/gitlab-mcp; \
+	rm -f $$HOME/.local/bin/atlassian-mcp $$HOME/.local/bin/github-mcp $$HOME/.local/bin/gitlab-mcp $$HOME/.local/bin/grafana-mcp; \
 	GDEST="$${GEMINI_CONFIG_DIR:-$$HOME/.gemini}"; \
 	XDEST="$${CODEX_HOME:-$$HOME/.codex}"; \
 	for f in $$DEST/CLAUDE.md $$GDEST/GEMINI.md $$GDEST/AGENTS.md $$XDEST/AGENTS.md; do \
