@@ -1,7 +1,7 @@
 Run the agent team (from inside aws-gitlab)
 
 export GITHUB_MCP_TOKEN="$(gh auth token)"
-cd ~/git/infocert/aws-gitlab
+cd ~/git/<PROJECT>/aws-gitlab
 git switch -c upgrade/gitlab-9-11-6
 claude
 
