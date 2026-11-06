@@ -145,6 +145,7 @@
       "mcp__grafana_remote__validate*"
     ],
     "ask": [
+      "Bash(git clone:*)",
       "Bash(git push:*)"
     ],
     "deny": [
@@ -207,6 +208,13 @@
       "Bash(eksctl utils:*)",
       "Bash(gh pr merge:*)",
       "Bash(gh pr review:*)",
+      "Bash(git -c *)",
+      "Bash(git clone *--config*)",
+      "Bash(git clone *--template*)",
+      "Bash(git clone *--upload-pack*)",
+      "Bash(git clone *-c *)",
+      "Bash(git clone *-u *)",
+      "Bash(git clone *ext::*)",
       "Bash(git push * main:*)",
       "Bash(git push * master:*)",
       "Bash(git push --force-with-lease:*)",
