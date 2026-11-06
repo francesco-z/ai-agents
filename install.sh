@@ -33,6 +33,7 @@ jq --slurpfile add "$SRC/settings.json" '
     .env = ((.env // {}) + $add[0].env)
   | .permissions = (.permissions // {})
   | .permissions.allow = (((.permissions.allow // []) + $add[0].permissions.allow) | unique)
+  | .permissions.ask   = (((.permissions.ask   // []) + ($add[0].permissions.ask // [])) | unique)
   | .permissions.deny  = (((.permissions.deny  // []) + $add[0].permissions.deny ) | unique)
   # Ship the prompt-based "goal" hooks (definition-of-done) globally. These carry
   # no script file, so only the settings keys need merging. We deliberately do NOT
