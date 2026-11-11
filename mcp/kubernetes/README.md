@@ -11,7 +11,10 @@ Kubernetes client. The full comparison is in
 
 | Server | Reaches | Transport | Credentials from |
 | --- | --- | --- | --- |
-| `kubernetes` | Every context in one kubeconfig | stdio launcher (`kubernetes-mcp`) | `~/.config/kubernetes-mcp/default.env` → kubeconfig file |
+| `kubernetes` | The contexts a profile selects | stdio launcher (`kubernetes-mcp`) | `~/.config/kubernetes-mcp/default.env` → kubeconfig files |
+
+One profile, and one server, per customer or environment, so credentials,
+proxy and mode never mix. Tools take a `context` argument.
 
 ## Modes
 
@@ -20,7 +23,7 @@ The launcher generates the server's TOML on every start from the profile
 
 | Mode | TOML | Tools |
 | --- | --- | --- |
-| `read-only` (default) | `read_only = true` | 14 read tools (list/get/log/top/events) |
+| `read-only` (default) | `read_only = true` | 14 read tools (list/get/log/top/events), plus `helm_list` with the `helm` toolset |
 | `non-destructive` | `disable_destructive = true` | adds `resources_create_or_update`, `pods_run` |
 | `read-write` | — | adds deletes, `pods_exec`, `resources_scale` (and Helm install/uninstall with the `helm` toolset) |
 
@@ -34,54 +37,83 @@ Gemini has `trust: false`, so it confirms every call. Codex has no per-tool
 rules, so there the mode is the boundary.
 
 Upstream calls these settings best-effort guardrails, not a security boundary.
-The known gaps are toolsets that use their own HTTP clients and skip
-`denied_resources` (kiali, netobserv, observability), and `helm`, which reads
-release Secrets internally. Keep `toolsets` at `core,config` unless you accept
-that. GHSA-xq9m-mrj7-jv98 (a Kiali token leak) is fixed in 0.1.2, the pinned
-version.
+Toolsets that use their own HTTP clients (kiali, netobserv, observability) skip
+`denied_resources`. GHSA-xq9m-mrj7-jv98 (a Kiali token leak) is fixed in 0.1.2,
+the pinned version.
+
+## Helm
+
+The `helm` toolset has `helm_list` (read) and `helm_install`/`helm_uninstall`
+(read-write mode only). There is no get values, history, upgrade or rollback.
+Helm keeps releases in Secrets, so `helm_list` fails while Secrets are denied.
+With `KUBERNETES_MCP_DENY_SECRETS=false` it works per namespace and returns
+release metadata only (name, chart, version, status, revision). Across all
+namespaces it can exceed the server's backend response limit. The price is
+that `resources_get` can then read any Secret too.
 
 ## Kubeconfig and proxy
 
-- **Kubeconfig**: read from the filesystem, `KUBERNETES_MCP_KUBECONFIG`
-  (default `~/.kube/config`). It is mounted read-only into the container. Every
-  context in it is reachable, and tools take a `context` argument.
-- **Container limits**: the kubeconfig must be self-contained. Paths to cert
-  files and exec auth plugins (`aws`, `gke-gcloud-auth-plugin`, `kubelogin`)
-  don't exist inside the image. Flatten it
-  (`kubectl config view --flatten --minify --context X`) or use
-  `KUBERNETES_MCP_RUNTIME=npx`, which runs on the host.
-- **SOCKS5**: `KUBERNETES_MCP_SOCKS5_PROXY=socks5://localhost:9999` is passed
-  to the server only (as `HTTPS_PROXY`). Hostnames resolve at the far end of
-  the tunnel, so cluster names that only resolve inside the VPN work.
-  Containers run with `--network host`, so a tunnel on `localhost` is
-  reachable. For a proxy per cluster instead, client-go also honours
-  `proxy-url: socks5://…` on a cluster entry in the kubeconfig.
+- **Kubeconfig**: read from the filesystem, never written.
+  `KUBERNETES_MCP_KUBECONFIG` takes colon-separated files and globs (default
+  `~/.kube/config`). `KUBERNETES_MCP_CONTEXTS` keeps only the contexts matching
+  its globs. The launcher merges and flattens the result into
+  `$XDG_RUNTIME_DIR/kubernetes-mcp/<profile>.kubeconfig` (tmpfs, `0600`,
+  rewritten on every start), and that is the only file the server sees, mounted
+  read-only in containers.
+- **SOCKS5**: `KUBERNETES_MCP_SOCKS5_PROXY` becomes `proxy-url` on every cluster
+  in the generated kubeconfig. Only API traffic is tunnelled; exec auth plugins
+  (`aws eks get-token`, gcloud) keep the direct route. Hostnames resolve at the
+  far end of the tunnel, so `socks5://` and `socks5h://` behave the same.
+- **VPN**: containers run with `--network host`, so the host's VPN routes and
+  DNS apply, as does a SOCKS tunnel on `localhost`.
 
 ## How it runs
 
-- **Default runtime**: `podman`, `quay.io/containers/kubernetes_mcp_server`,
-  pinned by `KUBERNETES_MCP_VERSION` (default `0.1.2`), run as your uid.
-  `docker` works the same way. `npx` runs the npm package on the host.
-- **Since v0.1.0** the server takes no runtime flags (`--read-only` and the
-  rest are gone); everything is TOML. That's why the launcher generates a file.
+| Runtime | Use when |
+| --- | --- |
+| `podman` (default), `docker` | Static credentials (tokens, client certs). Image `quay.io/containers/kubernetes_mcp_server`, run as your uid |
+| `binary` | Contexts with exec auth plugins (`aws`, `gke-gcloud-auth-plugin`, `kubelogin`): they and `~/.aws` etc. don't exist in the image. Runs `kubernetes-mcp-server` from `PATH` |
+| `npx` | Same as `binary`, via the npm package |
+
+`KUBERNETES_MCP_VERSION` pins the server (default `0.1.2`). For `binary`,
+install the matching release asset and check its digest:
+
+```bash
+gh release download v0.1.2 -R containers/kubernetes-mcp-server -p kubernetes-mcp-server-linux-amd64
+gh api repos/containers/kubernetes-mcp-server/releases/tags/v0.1.2 \
+  --jq '.assets[] | select(.name=="kubernetes-mcp-server-linux-amd64") | .digest'
+sha256sum kubernetes-mcp-server-linux-amd64   # must match
+install -m 755 kubernetes-mcp-server-linux-amd64 ~/.local/bin/kubernetes-mcp-server
+```
+
+Since v0.1.0 the server takes no runtime flags (`--read-only` and the rest are
+gone); everything is TOML. That's why the launcher generates a file. The
+launcher needs `kubectl` and `jq` on the host.
 
 ## Setup
 
 ```bash
-mkdir -p ~/.config/kubernetes-mcp
+mkdir -p ~/.config/kubernetes-mcp && chmod 700 ~/.config/kubernetes-mcp
 cp mcp/kubernetes/profiles/default.env.example ~/.config/kubernetes-mcp/default.env
-$EDITOR ~/.config/kubernetes-mcp/default.env   # kubeconfig, mode, SOCKS proxy, runtime
+$EDITOR ~/.config/kubernetes-mcp/default.env   # kubeconfig, contexts, mode, proxy, runtime
 make install
 ```
 
-The profile name must match the server's `args` (`default`). For a second
-setup, say a read-write profile for a lab, add a server to all three client
-configs, `kubernetes_lab` with `args: ["lab"]`, a `lab.env` beside it, and
-matching rules in `.claude/settings.json`.
+The checked-in configs only carry the generic `kubernetes` server (`args:
+["default"]`). Customer profiles stay out of this public repo. Register each one
+at user scope, with permissions in `~/.claude/settings.json`:
+
+```bash
+claude mcp add-json -s user kubernetes_acme '{"type":"stdio","command":"kubernetes-mcp","args":["acme"]}'
+```
+
+Then mirror the `mcp__kubernetes__*` rules from `.claude/settings.json` as
+`mcp__kubernetes_acme__*`.
 
 Smoke test without a client:
 
 ```bash
-kubernetes-mcp default   # waits on stdin for MCP messages; Ctrl-C to stop
-cat ~/.cache/kubernetes-mcp/default.toml   # the generated server config
+kubernetes-mcp acme   # waits on stdin for MCP messages; Ctrl-C to stop
+cat ~/.cache/kubernetes-mcp/acme.toml                                       # server config
+jq '.contexts[].name' "$XDG_RUNTIME_DIR/kubernetes-mcp/acme.kubeconfig"     # exposed contexts
 ```

@@ -4,7 +4,7 @@
 #
 #   kubernetes-mcp <profile>
 #
-# A profile is an env file naming ONE kubeconfig (any number of contexts) plus
+# A profile is an env file naming the kubeconfig(s) and contexts to expose plus
 # how to run the server. The mode is enforced here, through the server's own
 # TOML, so it does not depend on the model: write tools exist only when the
 # profile sets KUBERNETES_MCP_MODE.
@@ -23,9 +23,55 @@ done
 
 set -a; . "$ENV_FILE"; set +a
 
-KUBECONFIG_FILE="${KUBERNETES_MCP_KUBECONFIG:-$HOME/.kube/config}"
-KUBECONFIG_FILE="${KUBECONFIG_FILE/#\~/$HOME}"
-[ -f "$KUBECONFIG_FILE" ] || { echo "kubeconfig '$KUBECONFIG_FILE' not found (KUBERNETES_MCP_KUBECONFIG in $ENV_FILE)" >&2; exit 2; }
+# Colon-separated files, each may be a glob; ~ is expanded.
+SOURCES=()
+IFS=: read -ra PATTERNS <<<"${KUBERNETES_MCP_KUBECONFIG:-$HOME/.kube/config}"
+for p in "${PATTERNS[@]}"; do
+  shopt -s nullglob; matches=(${p/#\~/$HOME}); shopt -u nullglob
+  SOURCES+=(${matches[@]+"${matches[@]}"})
+done
+[ ${#SOURCES[@]} -gt 0 ] || { echo "no kubeconfig matches '${KUBERNETES_MCP_KUBECONFIG:-}' (KUBERNETES_MCP_KUBECONFIG in $ENV_FILE)" >&2; exit 2; }
+
+# Comma-separated context globs, e.g. "acme-*,shared-dev"; empty keeps all.
+CONTEXT_RE=""
+if [ -n "${KUBERNETES_MCP_CONTEXTS:-}" ]; then
+  IFS=, read -ra GLOBS <<<"$KUBERNETES_MCP_CONTEXTS"
+  for g in "${GLOBS[@]}"; do
+    g="$(sed 's/[][\\.^$+?(){}|/]/\\&/g; s/\*/.*/g' <<<"$g")"
+    CONTEXT_RE="${CONTEXT_RE:+$CONTEXT_RE|}$g"
+  done
+  CONTEXT_RE="^($CONTEXT_RE)$"
+fi
+
+# client-go reaches SOCKS through proxy-url on each cluster and resolves
+# hostnames at the far end of the tunnel, so socks5h:// is accepted and
+# rewritten. Unlike HTTPS_PROXY this leaves exec auth plugins (aws, gcloud)
+# on the direct route.
+PROXY="${KUBERNETES_MCP_SOCKS5_PROXY:-}"
+PROXY="${PROXY/#socks5h:/socks5:}"
+
+# The server gets one self-contained kubeconfig: merged, flattened (certs
+# embedded), filtered to the profile's contexts, proxied. It holds credentials,
+# so it lives in the per-user tmpfs, never on disk, and is rewritten per start.
+RUN_DIR="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/kubernetes-mcp"
+KUBECONFIG_FILE="$RUN_DIR/$PROFILE.kubeconfig"
+(umask 077; mkdir -p "$RUN_DIR")
+(
+  umask 077
+  KUBECONFIG="$(IFS=:; echo "${SOURCES[*]}")" kubectl config view --raw --flatten -o json \
+  | jq --arg re "$CONTEXT_RE" --arg proxy "$PROXY" '
+      .["current-context"] as $cur
+      | .contexts |= map(select($re == "" or (.name | test($re))))
+      | [.contexts[].context.cluster] as $cl
+      | [.contexts[].context.user] as $us
+      | .clusters |= map(select(.name as $n | any($cl[]; . == $n)))
+      | .users |= map(select(.name as $n | any($us[]; . == $n)))
+      | if $proxy != "" then .clusters[].cluster["proxy-url"] = $proxy else . end
+      | .["current-context"] = (if any(.contexts[]; .name == $cur) then $cur else (.contexts[0].name // "") end)' \
+  > "$KUBECONFIG_FILE"
+)
+[ "$(jq '.contexts | length' "$KUBECONFIG_FILE")" -gt 0 ] \
+  || { echo "no context matches KUBERNETES_MCP_CONTEXTS='${KUBERNETES_MCP_CONTEXTS:-}'" >&2; exit 2; }
 
 TOOLSETS="${KUBERNETES_MCP_TOOLSETS:-core,config}"
 [[ "$TOOLSETS" =~ ^[a-z/]+(,[a-z/]+)*$ ]] || { echo "bad KUBERNETES_MCP_TOOLSETS='$TOOLSETS'" >&2; exit 2; }
@@ -61,23 +107,16 @@ disabled_tools = ["configuration_view"]
 $SECRETS_TOML
 EOF
 
-# client-go honours HTTPS_PROXY with a socks5:// URL and resolves hostnames at
-# the far end of the tunnel, so socks5h:// is accepted and rewritten.
-PROXY_ENV=()
-if [ -n "${KUBERNETES_MCP_SOCKS5_PROXY:-}" ]; then
-  PROXY="${KUBERNETES_MCP_SOCKS5_PROXY/#socks5h:/socks5:}"
-  NO_PROXY_VAL="${KUBERNETES_MCP_NO_PROXY:-localhost,127.0.0.1,::1}"
-  PROXY_ENV=("HTTPS_PROXY=$PROXY" "HTTP_PROXY=$PROXY" "NO_PROXY=$NO_PROXY_VAL")
-fi
-
 KUBERNETES_MCP_VERSION="${KUBERNETES_MCP_VERSION:-0.1.2}"
 IMAGE="${KUBERNETES_MCP_IMAGE:-quay.io/containers/kubernetes_mcp_server:v$KUBERNETES_MCP_VERSION}"
 RUNTIME="${KUBERNETES_MCP_RUNTIME:-podman}"
 case "$RUNTIME" in
+  binary)
+    # On the host, so exec auth plugins (aws, gke-gcloud-auth-plugin) work.
+    KUBECONFIG="$KUBECONFIG_FILE" exec "${KUBERNETES_MCP_BIN:-kubernetes-mcp-server}" --config "$CONFIG"
+    ;;
   npx)
-    # Proxy env goes to the server only: npm cannot fetch through SOCKS.
-    exec npx -y -p "kubernetes-mcp-server@$KUBERNETES_MCP_VERSION" -c \
-      "env ${PROXY_ENV[*]+${PROXY_ENV[*]@Q}} KUBECONFIG=${KUBECONFIG_FILE@Q} kubernetes-mcp-server --config ${CONFIG@Q}"
+    KUBECONFIG="$KUBECONFIG_FILE" exec npx -y "kubernetes-mcp-server@$KUBERNETES_MCP_VERSION" --config "$CONFIG"
     ;;
   podman|docker)
     # Runs as your uid so the 0600 kubeconfig is readable. --network host so
@@ -85,12 +124,11 @@ case "$RUNTIME" in
     # are reachable.
     RUN_ARGS=(--user "$(id -u):$(id -g)")
     [ "$RUNTIME" = podman ] && RUN_ARGS+=(--userns keep-id --security-opt label=disable)
-    for e in ${PROXY_ENV[@]+"${PROXY_ENV[@]}"}; do RUN_ARGS+=(-e "$e"); done
     exec "$RUNTIME" run --rm -i --network host "${RUN_ARGS[@]}" \
       -v "$KUBECONFIG_FILE:/kube/config:ro" -e KUBECONFIG=/kube/config \
       -v "$CONFIG:/etc/kubernetes-mcp/config.toml:ro" \
       "$IMAGE" --config /etc/kubernetes-mcp/config.toml
     ;;
   *)
-    echo "unknown KUBERNETES_MCP_RUNTIME='$RUNTIME' (podman|docker|npx)" >&2; exit 2 ;;
+    echo "unknown KUBERNETES_MCP_RUNTIME='$RUNTIME' (binary|podman|docker|npx)" >&2; exit 2 ;;
 esac

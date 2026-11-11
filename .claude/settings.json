@@ -146,6 +146,7 @@
       "mcp__kubernetes__api_resources_list",
       "mcp__kubernetes__configuration_contexts_list",
       "mcp__kubernetes__events_list",
+      "mcp__kubernetes__helm_list",
       "mcp__kubernetes__namespaces_list",
       "mcp__kubernetes__nodes_log",
       "mcp__kubernetes__nodes_stats_summary",
