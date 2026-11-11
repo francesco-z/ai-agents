@@ -1,0 +1,26 @@
+# Merged into ~/.codex/config.toml by install.sh: default_permissions goes at the
+# top of the file (TOML top-level keys must precede tables), the profile tables
+# at the end. Ignored if any loaded config sets sandbox_mode.
+#
+# Deny applies to sandboxed commands: kubectl/aws/ssh that need these
+# directories must run outside the sandbox, which Codex asks you to approve.
+
+default_permissions = "agents-safe"
+
+[permissions.agents-safe]
+description = "Workspace access; credential directories unreadable"
+extends = ":workspace"
+
+[permissions.agents-safe.filesystem]
+"~/.aws" = "deny"
+"~/.config/atlassian-mcp" = "deny"
+"~/.config/gcloud" = "deny"
+"~/.config/github-mcp" = "deny"
+"~/.config/gitlab-mcp" = "deny"
+"~/.config/grafana-mcp" = "deny"
+"~/.config/kubernetes-mcp" = "deny"
+"~/.docker/config.json" = "deny"
+"~/.gnupg" = "deny"
+"~/.kube" = "deny"
+"~/.ssh" = "deny"
+"/run/user/*/kubernetes-mcp" = "deny"

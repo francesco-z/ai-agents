@@ -145,6 +145,37 @@ if [ -d "$HOME/.codex" ] && ! grep -q '^\[mcp_servers\.github\]' "$HOME/.codex/c
   echo "    appended MCP servers to ~/.codex/config.toml"
 fi
 
+# ---- Keep agents out of credential directories ------------------------------
+# Claude's deny rules ship in .claude/settings.json (merged above). Codex gets a
+# permission profile; Antigravity takes absolute paths only, so its rules are
+# built from $HOME here. Shell tools (kubectl, aws, ssh, git) keep working for
+# Claude and Antigravity; in Codex they need an approved run outside the sandbox.
+if [ -d "$HOME/.codex" ] && ! grep -q '^\[permissions\.agents-safe\]' "$HOME/.codex/config.toml" 2>/dev/null; then
+  TMP="$(mktemp)"
+  { grep -q '^default_permissions' "$HOME/.codex/config.toml" 2>/dev/null \
+      || { grep '^default_permissions' "$REPO_DIR/.codex/permissions.toml"; echo; }
+    cat "$HOME/.codex/config.toml" 2>/dev/null; echo
+    sed -n '/^\[permissions\./,$p' "$REPO_DIR/.codex/permissions.toml"; } > "$TMP"
+  mv "$TMP" "$HOME/.codex/config.toml"
+  echo "    added the agents-safe permission profile to ~/.codex/config.toml"
+fi
+
+AGY_SETTINGS="${GEMINI_CONFIG_DIR:-$HOME/.gemini}/antigravity-cli/settings.json"
+if [ -f "$AGY_SETTINGS" ]; then
+  TMP="$(mktemp)"
+  jq --arg h "$HOME" --arg run "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" '
+    .permissions = (.permissions // {})
+    | .permissions.deny = (((.permissions.deny // [])
+        + ([".aws", ".config/atlassian-mcp", ".config/gcloud", ".config/github-mcp",
+            ".config/gitlab-mcp", ".config/grafana-mcp", ".config/kubernetes-mcp",
+            ".docker/config.json", ".gnupg", ".kube", ".ssh"]
+           | map("read_file(\($h)/\(.))"))
+        + ["read_file(\($run)/kubernetes-mcp)", "write_file(/etc)"]) | unique)' \
+    "$AGY_SETTINGS" > "$TMP" && mv "$TMP" "$AGY_SETTINGS"
+  chmod 600 "$AGY_SETTINGS"
+  echo "    merged credential-directory deny rules into $AGY_SETTINGS"
+fi
+
 cat <<'EOF'
 
 ==> Done.
