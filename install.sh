@@ -116,7 +116,7 @@ done
 if command -v claude >/dev/null 2>&1; then
   for name in $(jq -r '.mcpServers | keys[]' "$CLAUDE_MCP"); do
     case " $SKIP " in
-      *" $name "*) echo "    skipped $name (no profile in $PROFILE_DIR)"; continue ;;
+      *" $name "*) echo "    skipped $name (no profile in ${XDG_CONFIG_HOME:-$HOME/.config}/$(jq -r --arg n "$name" '.mcpServers[$n].command' "$CLAUDE_MCP"))"; continue ;;
     esac
     claude mcp remove "$name" -s user >/dev/null 2>&1 || true
     claude mcp add-json -s user "$name" "$(jq -c --arg n "$name" '.mcpServers[$n]' "$CLAUDE_MCP")" >/dev/null 2>&1 \
