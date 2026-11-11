@@ -83,6 +83,12 @@
         "create_annotation", "update_annotation", "delete_annotation", "create_snapshot",
         "delete_snapshot", "ask_assistant"
       ]
+    },
+    "kubernetes": {
+      "command": "kubernetes-mcp",
+      "args": ["default"],
+      "trust": false,
+      "excludeTools": ["configuration_view"]
     }
   }
 }

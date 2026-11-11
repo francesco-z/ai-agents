@@ -77,7 +77,8 @@ ln -sf "$REPO_DIR/mcp/atlassian/atlassian-mcp.sh" "$HOME/.local/bin/atlassian-mc
 ln -sf "$REPO_DIR/mcp/github/github-mcp.sh"       "$HOME/.local/bin/github-mcp"
 ln -sf "$REPO_DIR/mcp/gitlab/gitlab-mcp.sh"       "$HOME/.local/bin/gitlab-mcp"
 ln -sf "$REPO_DIR/mcp/grafana/grafana-mcp.sh"     "$HOME/.local/bin/grafana-mcp"
-echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp,gitlab-mcp,grafana-mcp}"
+ln -sf "$REPO_DIR/mcp/kubernetes/kubernetes-mcp.sh" "$HOME/.local/bin/kubernetes-mcp"
+echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp,gitlab-mcp,grafana-mcp,kubernetes-mcp}"
 
 # ---- Install the MCP servers each client is ready to use ---------------------
 # The configs are checked in at the path each client expects — .claude/mcp.json,
@@ -88,6 +89,7 @@ CLAUDE_MCP="$SRC/mcp.json"
 PROFILE_DIR="${ATLASSIAN_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/atlassian-mcp}"
 GITLAB_PROFILE_DIR="${GITLAB_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gitlab-mcp}"
 GRAFANA_PROFILE_DIR="${GRAFANA_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/grafana-mcp}"
+KUBERNETES_PROFILE_DIR="${KUBERNETES_MCP_PROFILE_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/kubernetes-mcp}"
 
 # A launcher-backed server is only installed once its profile exists, so a
 # half-configured customer never leaves a server that fails at spawn.
@@ -103,6 +105,9 @@ for name in $(jq -r '.mcpServers | keys[]' "$CLAUDE_MCP"); do
   elif [ "$cmd" = "grafana-mcp" ]; then
     profile="$(jq -r --arg n "$name" '.mcpServers[$n].args[0] // ""' "$CLAUDE_MCP")"
     [ -f "$GRAFANA_PROFILE_DIR/$profile.env" ] || SKIP="$SKIP $name"
+  elif [ "$cmd" = "kubernetes-mcp" ]; then
+    profile="$(jq -r --arg n "$name" '.mcpServers[$n].args[0] // ""' "$CLAUDE_MCP")"
+    [ -f "$KUBERNETES_PROFILE_DIR/$profile.env" ] || SKIP="$SKIP $name"
   fi
 done
 

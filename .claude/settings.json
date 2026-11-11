@@ -142,11 +142,35 @@
       "mcp__grafana_remote__search*",
       "mcp__grafana_remote__suggest*",
       "mcp__grafana_remote__user*",
-      "mcp__grafana_remote__validate*"
+      "mcp__grafana_remote__validate*",
+      "mcp__kubernetes__api_resources_list",
+      "mcp__kubernetes__configuration_contexts_list",
+      "mcp__kubernetes__events_list",
+      "mcp__kubernetes__namespaces_list",
+      "mcp__kubernetes__nodes_log",
+      "mcp__kubernetes__nodes_stats_summary",
+      "mcp__kubernetes__nodes_top",
+      "mcp__kubernetes__pods_get",
+      "mcp__kubernetes__pods_list",
+      "mcp__kubernetes__pods_list_in_namespace",
+      "mcp__kubernetes__pods_log",
+      "mcp__kubernetes__pods_top",
+      "mcp__kubernetes__projects_list",
+      "mcp__kubernetes__resources_get",
+      "mcp__kubernetes__resources_list",
+      "mcp__kubernetes__targets_list"
     ],
     "ask": [
       "Bash(git clone:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "mcp__kubernetes__helm_install",
+      "mcp__kubernetes__helm_uninstall",
+      "mcp__kubernetes__pods_delete",
+      "mcp__kubernetes__pods_exec",
+      "mcp__kubernetes__pods_run",
+      "mcp__kubernetes__resources_create_or_update",
+      "mcp__kubernetes__resources_delete",
+      "mcp__kubernetes__resources_scale"
     ],
     "deny": [
       "Bash(aws * allocate-*)",
@@ -383,7 +407,8 @@
       "mcp__grafana_remote__delete*",
       "mcp__grafana_remote__find*",
       "mcp__grafana_remote__patch*",
-      "mcp__grafana_remote__update*"
+      "mcp__grafana_remote__update*",
+      "mcp__kubernetes__configuration_view"
     ],
     "defaultMode": "default"
   },

@@ -44,3 +44,8 @@ command = "grafana-mcp"
 args = ["cloud"]
 startup_timeout_sec = 30
 
+[mcp_servers.kubernetes]
+command = "kubernetes-mcp"
+args = ["default"]
+startup_timeout_sec = 60
+

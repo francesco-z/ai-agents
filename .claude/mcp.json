@@ -40,6 +40,11 @@
       "type": "stdio",
       "command": "grafana-mcp",
       "args": ["cloud"]
+    },
+    "kubernetes": {
+      "type": "stdio",
+      "command": "kubernetes-mcp",
+      "args": ["default"]
     }
   }
 }
