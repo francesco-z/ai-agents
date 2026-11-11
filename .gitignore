@@ -73,6 +73,9 @@ web_modules/
 # MCP profiles hold API tokens / PATs
 mcp/*/profiles/*.env
 
+# Antigravity CLI user settings list local workspace paths
+.gemini/antigravity-cli/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
