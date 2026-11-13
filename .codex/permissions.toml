@@ -4,6 +4,8 @@
 #
 # Deny applies to sandboxed commands: kubectl/aws/ssh that need these
 # directories must run outside the sandbox, which Codex asks you to approve.
+# Same for git once ~/.gitconfig is hidden: a sandboxed commit sees no identity.
+# Globs are deny-read only and miss files created later, hence the exact names.
 
 default_permissions = "agents-safe"
 
@@ -20,6 +22,8 @@ extends = ":workspace"
 "~/.config/grafana-mcp" = "deny"
 "~/.config/kubernetes-mcp" = "deny"
 "~/.docker/config.json" = "deny"
+"~/.git-credentials" = "deny"
+"~/.gitconfig" = "deny"
 "~/.gnupg" = "deny"
 "~/.kube" = "deny"
 "~/.ssh" = "deny"

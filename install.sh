@@ -150,6 +150,8 @@ fi
 # permission profile; Antigravity takes absolute paths only, so its rules are
 # built from $HOME here. Shell tools (kubectl, aws, ssh, git) keep working for
 # Claude and Antigravity; in Codex they need an approved run outside the sandbox.
+# The command guardrails (deny/ask) follow the same split: Codex reads
+# .codex/rules/ai-agents.rules, Antigravity's are translated from Claude's.
 if [ -d "$HOME/.codex" ] && ! grep -q '^\[permissions\.agents-safe\]' "$HOME/.codex/config.toml" 2>/dev/null; then
   TMP="$(mktemp)"
   { grep -q '^default_permissions' "$HOME/.codex/config.toml" 2>/dev/null \
@@ -158,22 +160,50 @@ if [ -d "$HOME/.codex" ] && ! grep -q '^\[permissions\.agents-safe\]' "$HOME/.co
     sed -n '/^\[permissions\./,$p' "$REPO_DIR/.codex/permissions.toml"; } > "$TMP"
   mv "$TMP" "$HOME/.codex/config.toml"
   echo "    added the agents-safe permission profile to ~/.codex/config.toml"
+elif [ -d "$HOME/.codex" ]; then
+  # Profile already there: add only the paths introduced since.
+  sed -n '/^\[permissions\.agents-safe\.filesystem\]/,$p' "$REPO_DIR/.codex/permissions.toml" \
+    | grep '= "deny"$' | while IFS= read -r line; do
+      grep -qxF "$line" "$HOME/.codex/config.toml" && continue
+      TMP="$(mktemp)"
+      awk -v add="$line" '{print} /^\[permissions\.agents-safe\.filesystem\]/{print add}' \
+        "$HOME/.codex/config.toml" > "$TMP" && mv "$TMP" "$HOME/.codex/config.toml"
+      echo "    added $line to the agents-safe profile"
+    done
+fi
+if [ -d "$HOME/.codex" ]; then
+  mkdir -p "$HOME/.codex/rules"
+  cp "$REPO_DIR/.codex/rules/ai-agents.rules" "$HOME/.codex/rules/ai-agents.rules"
+  echo "    installed ~/.codex/rules/ai-agents.rules"
 fi
 
 AGY_SETTINGS="${GEMINI_CONFIG_DIR:-$HOME/.gemini}/antigravity-cli/settings.json"
 if [ -f "$AGY_SETTINGS" ]; then
   TMP="$(mktemp)"
-  jq --arg h "$HOME" --arg run "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" '
+  # Bash(...) rules become command(...) prefixes, or regex: when a * sits mid-rule;
+  # MCP rules carry over only when they name one tool (no prefix wildcards there).
+  jq --arg h "$HOME" --arg run "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
+     --slurpfile claude "$SRC/settings.json" '
+    def agy:
+      if startswith("Bash(") then
+        (.[5:-1] | sub("(?<!:):\\*$"; "") | sub(" \\*$"; "")) as $c
+        | if ($c | contains("*")) then "command(regex:\($c | gsub("\\*"; ".*")))" else "command(\($c))" end
+      elif test("^mcp__[^*]+$") then
+        capture("^mcp__(?<s>.+?)__(?<t>.+)$") | "mcp(\(.s)/\(.t))"
+      else empty end;
     .permissions = (.permissions // {})
     | .permissions.deny = (((.permissions.deny // [])
         + ([".aws", ".config/atlassian-mcp", ".config/gcloud", ".config/github-mcp",
             ".config/gitlab-mcp", ".config/grafana-mcp", ".config/kubernetes-mcp",
-            ".docker/config.json", ".gnupg", ".kube", ".ssh"]
+            ".docker/config.json", ".git-credentials", ".gitconfig", ".gnupg", ".kube", ".ssh"]
            | map("read_file(\($h)/\(.))"))
-        + ["read_file(\($run)/kubernetes-mcp)", "write_file(/etc)"]) | unique)' \
+        + ["read_file(\($run)/kubernetes-mcp)", "write_file(/etc)"]
+        + ($claude[0].permissions.deny | map(agy))) | unique)
+    | .permissions.ask = (((.permissions.ask // [])
+        + ($claude[0].permissions.ask | map(agy))) | unique)' \
     "$AGY_SETTINGS" > "$TMP" && mv "$TMP" "$AGY_SETTINGS"
   chmod 600 "$AGY_SETTINGS"
-  echo "    merged credential-directory deny rules into $AGY_SETTINGS"
+  echo "    merged credential-directory and command guardrails into $AGY_SETTINGS"
 fi
 
 cat <<'EOF'
