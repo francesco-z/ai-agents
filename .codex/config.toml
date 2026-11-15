@@ -4,6 +4,8 @@
 # Codex is stdio-only on most builds and does not expand ${VAR} in config, so
 # both remote servers go through a local command: github-mcp reads
 # $GITHUB_MCP_TOKEN at spawn time, and Rovo goes through the mcp-remote bridge.
+# disabled_tools mirrors excludeTools in .gemini/config/mcp_config.json (exact
+# names only); install.sh adds it to a server block that is already installed.
 
 [mcp_servers.github]
 command = "github-mcp"
@@ -20,31 +22,37 @@ args = ["cloud"]
 startup_timeout_sec = 30
 
 [mcp_servers.atlassian_rovo]
+disabled_tools = ["createJiraIssue", "editJiraIssue", "deleteJiraIssue", "transitionJiraIssue", "addOrEditJiraIssueComment", "deleteJiraComment", "addOrEditJiraIssueWorklog", "createJiraIssueLink", "manageJiraProjectVersion", "manageJiraProjectVersionRelatedWork", "manageJiraSprint", "createJiraBoard", "watchJiraIssue", "uploadAttachmentToJiraIssue", "editJiraEntityProperty", "deleteJiraIssueAttachment", "createJiraProject", "updateJiraProject", "createConfluenceContent", "updateConfluenceContent", "createConfluenceSpace", "setConfluenceSpaceInstructions", "copyConfluenceContent", "moveConfluenceContent", "archiveConfluenceContent", "unarchiveConfluenceContent", "restoreConfluenceContentVersion", "convertConfluenceContentMode", "setConfluenceContentStatus", "createConfluenceComment", "updateConfluenceComment", "updateConfluenceCommentResolution", "createConfluenceAttachment", "addLabelsToConfluenceContent", "addConfluenceReaction", "addConfluenceContentPermissions", "removeConfluenceContentPermissions", "replaceConfluenceContentPermissions", "setConfluenceContentRestrictionState", "enableConfluencePublicLink", "disableConfluencePublicLink", "completeConfluenceTask", "reopenConfluenceTask", "starConfluenceContent", "unstarConfluenceContent", "starConfluenceSpace", "unstarConfluenceSpace", "watchConfluenceContent", "unwatchConfluenceContent", "watchConfluenceSpace", "unwatchConfluenceSpace", "watchConfluenceLabel", "unwatchConfluenceLabel", "addTeamworkGraphContext", "executeWrite", "executeDestructive"]
 command = "npx"
 args = ["-y", "mcp-remote", "https://mcp.atlassian.com/v2/mcp"]
 startup_timeout_sec = 60
 
 [mcp_servers.gitlab_onprem]
+disabled_tools = ["add_commit", "create_issue", "save_merge_request", "save_note", "save_merge_request_review", "accept_merge_request", "add_branch", "fork_repository", "save_pipeline", "manage_pipeline", "save_vulnerability", "save_work_item", "link_work_items", "attach_scan_profile"]
 command = "gitlab-mcp"
 args = ["onprem"]
 startup_timeout_sec = 30
 
 [mcp_servers.gitlab_cloud]
+disabled_tools = ["add_commit", "create_issue", "save_merge_request", "save_note", "save_merge_request_review", "accept_merge_request", "add_branch", "fork_repository", "save_pipeline", "manage_pipeline", "save_vulnerability", "save_work_item", "link_work_items", "attach_scan_profile"]
 command = "gitlab-mcp"
 args = ["cloud"]
 startup_timeout_sec = 30
 
 [mcp_servers.grafana_onprem]
+disabled_tools = ["update_dashboard", "patch_dashboard", "create_incident", "add_activity_to_incident", "update_incident", "find_error_pattern_logs", "find_slow_requests", "update_alert_group", "create_annotation", "update_annotation", "delete_annotation", "create_snapshot", "delete_snapshot", "ask_assistant"]
 command = "grafana-mcp"
 args = ["onprem"]
 startup_timeout_sec = 30
 
 [mcp_servers.grafana_cloud]
+disabled_tools = ["update_dashboard", "patch_dashboard", "create_incident", "add_activity_to_incident", "update_incident", "find_error_pattern_logs", "find_slow_requests", "update_alert_group", "create_annotation", "update_annotation", "delete_annotation", "create_snapshot", "delete_snapshot", "ask_assistant"]
 command = "grafana-mcp"
 args = ["cloud"]
 startup_timeout_sec = 30
 
 [mcp_servers.kubernetes]
+disabled_tools = ["configuration_view"]
 command = "kubernetes-mcp"
 args = ["default"]
 startup_timeout_sec = 60

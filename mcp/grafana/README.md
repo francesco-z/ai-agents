@@ -51,8 +51,8 @@ the stdio transport only.
    (e.g. `--disable-admin --disable-oncall`), not remove this one.
 3. **Client permissions** — `.claude/settings.json` allows the read prefixes and
    denies the write ones for `grafana_onprem`, `grafana_cloud` and
-   `grafana_remote`; Gemini's equivalent is `excludeTools`. Codex has no
-   per-tool allowlist — there, layers 1–2 are the boundary.
+   `grafana_remote`; Gemini's equivalent is `excludeTools`, Codex's is
+   `disabled_tools` in `.codex/config.toml`.
 
 `alerting_manage_*` and `grafana_api_request` are neither allowed nor denied, so
 Claude Code prompts for them: they multiplex several operations behind one name.

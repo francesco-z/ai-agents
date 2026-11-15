@@ -33,8 +33,8 @@ they reach the API server, unless `KUBERNETES_MCP_DENY_SECRETS=false`.
 
 Client permissions add a layer. `.claude/settings.json` allows the read tools
 and asks before each write tool, so switching the mode needs no settings edit.
-Gemini has `trust: false`, so it confirms every call. Codex has no per-tool
-rules, so there the mode is the boundary.
+Gemini has `trust: false`, so it confirms every call. Codex can only switch a
+tool off (`disabled_tools`), not ask, so there the mode is the boundary.
 
 Upstream calls these settings best-effort guardrails, not a security boundary.
 Toolsets that use their own HTTP clients (kiali, netobserv, observability) skip

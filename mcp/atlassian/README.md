@@ -144,8 +144,9 @@ Least trusted last — the model is the last line, not the first.
 4. **Client permissions** — `.claude/settings.json` denies every mutating tool
    name across all three servers (deny wins over allow in Claude Code) and allows
    the read ones without prompting. Gemini's equivalent is `excludeTools` in
-   `.gemini/config/mcp_config.json`. Codex has no per-tool allowlist — there,
-   layers 1–3 are the boundary.
+   `.gemini/config/mcp_config.json`, Codex's is `disabled_tools` in
+   `.codex/config.toml` (both for `atlassian_rovo` only — exact names, no
+   prefixes; elsewhere layers 1–3 are the boundary).
 
 Layer 4 is the only one that applies to `atlassian_rovo`, since you do not run
 it. Tighten it further in Atlassian Administration, which lets an org admin

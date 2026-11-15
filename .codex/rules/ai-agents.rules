@@ -5,7 +5,10 @@
 # Patterns are argument prefixes with no wildcards, so two Claude rules have no
 # exact equivalent: `aws <service> <mutating-verb>-*` becomes a prompt on every
 # aws call, and the `git clone` option denies fall under the clone prompt.
-# Claude's allow list is not mirrored: an allow here would also lift the sandbox.
+# permissions.allow is mirrored at the bottom for the read-only and git/gh
+# commands. The interpreters and package managers (go, node, npm, python, uv, ...)
+# are left to the sandbox: an allow here would run them outside it. The aws
+# read-only allows are moot under the aws prompt above.
 
 prefix_rule(
     pattern = ["aws", "s3", ["cp", "mb", "mv", "rb", "rm", "sync"]],
@@ -123,3 +126,20 @@ prefix_rule(
     decision = "prompt",
     justification = "Installs third-party code.",
 )
+
+# Read-only and local-workflow commands Claude runs without asking.
+prefix_rule(pattern = ["eksctl", ["get", "info", "version"]])
+prefix_rule(pattern = ["gh", ["api", "issue", "search"]])
+prefix_rule(pattern = ["gh", "auth", "token"])
+prefix_rule(pattern = ["gh", "pr", ["create", "diff", "list", "view"]])
+prefix_rule(pattern = ["gh", "repo", "view"])
+prefix_rule(pattern = ["git", [
+    "add", "branch", "checkout", "commit", "diff", "log", "status", "switch",
+    "worktree",
+]])
+prefix_rule(pattern = ["helm", ["get", "list", "status", "template"]])
+prefix_rule(pattern = ["kubectl", ["describe", "get", "logs", "top"]])
+prefix_rule(pattern = ["kubectl", "auth", "can-i"])
+prefix_rule(pattern = ["kubectl", "config", "view"])
+prefix_rule(pattern = [["terraform", "tofu"], ["fmt", "plan", "providers", "validate", "version"]])
+prefix_rule(pattern = [["terraform", "tofu"], "state", ["list", "show"]])

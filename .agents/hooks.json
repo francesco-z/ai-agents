@@ -1,0 +1,15 @@
+{
+  "block-push-to-main": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "../.claude/hooks/block-push-to-main.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

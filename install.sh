@@ -143,15 +143,28 @@ echo "    merged $GEM_MCP"
 if [ -d "$HOME/.codex" ] && ! grep -q '^\[mcp_servers\.github\]' "$HOME/.codex/config.toml" 2>/dev/null; then
   cat "$REPO_DIR/.codex/config.toml" >> "$HOME/.codex/config.toml"
   echo "    appended MCP servers to ~/.codex/config.toml"
+elif [ -d "$HOME/.codex" ]; then
+  # Blocks already there: add disabled_tools to the ones that lack it.
+  awk '/^\[mcp_servers\./{s=$0} /^disabled_tools = /{print s "\t" $0}' "$REPO_DIR/.codex/config.toml" \
+    | while IFS="$(printf '\t')" read -r hdr line; do
+      grep -qxF "$hdr" "$HOME/.codex/config.toml" || continue
+      awk -v h="$hdr" '$0==h{t=1;next} /^\[/{t=0} t&&/^disabled_tools/{f=1} END{exit !f}' \
+        "$HOME/.codex/config.toml" && continue
+      TMP="$(mktemp)"
+      awk -v h="$hdr" -v add="$line" '{print} $0==h{print add}' \
+        "$HOME/.codex/config.toml" > "$TMP" && mv "$TMP" "$HOME/.codex/config.toml"
+      echo "    added disabled_tools to $hdr in ~/.codex/config.toml"
+    done
 fi
 
 # ---- Keep agents out of credential directories ------------------------------
 # Claude's deny rules ship in .claude/settings.json (merged above). Codex gets a
-# permission profile; Antigravity takes absolute paths only, so its rules are
-# built from $HOME here. Shell tools (kubectl, aws, ssh, git) keep working for
+# permission profile, Antigravity a translated settings file. Shell tools (kubectl, aws, ssh, git) keep working for
 # Claude and Antigravity; in Codex they need an approved run outside the sandbox.
-# The command guardrails (deny/ask) follow the same split: Codex reads
-# .codex/rules/ai-agents.rules, Antigravity's are translated from Claude's.
+# The command rules (allow/ask/deny) follow the same split: Codex reads
+# .codex/rules/ai-agents.rules, Antigravity .gemini/antigravity-cli/settings.json.
+# The push guard hook stays project-scoped for all three (.claude/settings.json,
+# .codex/hooks.json, .agents/hooks.json).
 if [ -d "$HOME/.codex" ] && ! grep -q '^\[permissions\.agents-safe\]' "$HOME/.codex/config.toml" 2>/dev/null; then
   TMP="$(mktemp)"
   { grep -q '^default_permissions' "$HOME/.codex/config.toml" 2>/dev/null \
@@ -177,33 +190,50 @@ if [ -d "$HOME/.codex" ]; then
   echo "    installed ~/.codex/rules/ai-agents.rules"
 fi
 
+# Antigravity's rules are versioned in .gemini/antigravity-cli/settings.json for
+# review, but .claude/settings.json stays the source: the file is regenerated
+# here, so a Claude rule change shows up as a diff to commit. Bash(...) rules
+# become command(...) prefixes, or regex: when a * sits mid-rule; MCP rules carry
+# over only when they name one tool; Read/Write paths lose their globs. The
+# blanket Edit/Write allow becomes write_file(*), which there also grants reads.
+AGY_SRC="$REPO_DIR/.gemini/antigravity-cli/settings.json"
+jq '
+  def agy:
+    if startswith("Bash(") then
+      (.[5:-1] | sub("(?<!:):\\*$"; "") | sub(" \\*$"; "")
+       | if test("^[^*]+\\*$") then .[:-1] else . end) as $c
+      | if ($c | contains("*")) then "command(regex:\($c | gsub("\\*"; ".*")))" else "command(\($c))" end
+    elif test("^mcp__[^*]+$") then
+      capture("^mcp__(?<s>.+?)__(?<t>.+)$") | "mcp(\(.s)/\(.t))"
+    elif . == "Edit" or . == "Write" or . == "NotebookEdit" then "write_file(*)"
+    elif test("^(Read|Write)\\(") then
+      capture("^(?<v>Read|Write)\\((?<p>.*)\\)$")
+      | (if .v == "Read" then "read_file" else "write_file" end) as $a
+      | .p | sub("/\\*\\*$"; "") | sub("^//run/user/\\*"; "$XDG_RUNTIME_DIR") | sub("^//"; "/")
+      | if . == "~/.git*" then "~/.git-credentials", "~/.gitconfig" else . end
+      | "\($a)(\(.))"
+    else empty end;
+  # A denied read already blocks writes, so the matching write_file is dropped.
+  def rules: map(agy) | . as $r
+    | map(select(. as $x | (startswith("write_file(") and ($r | index("read_file(" + $x[11:]))) | not)) | unique;
+  {permissions: (.permissions | {allow: (.allow | rules), ask: (.ask | rules), deny: (.deny | rules)})}
+' "$SRC/settings.json" > "$AGY_SRC.tmp" && mv "$AGY_SRC.tmp" "$AGY_SRC"
+
+# Antigravity takes absolute paths only, so ~ and $XDG_RUNTIME_DIR are expanded
+# on the way in; merged, so your own rules and other settings survive.
 AGY_SETTINGS="${GEMINI_CONFIG_DIR:-$HOME/.gemini}/antigravity-cli/settings.json"
 if [ -f "$AGY_SETTINGS" ]; then
   TMP="$(mktemp)"
-  # Bash(...) rules become command(...) prefixes, or regex: when a * sits mid-rule;
-  # MCP rules carry over only when they name one tool (no prefix wildcards there).
   jq --arg h "$HOME" --arg run "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
-     --slurpfile claude "$SRC/settings.json" '
-    def agy:
-      if startswith("Bash(") then
-        (.[5:-1] | sub("(?<!:):\\*$"; "") | sub(" \\*$"; "")) as $c
-        | if ($c | contains("*")) then "command(regex:\($c | gsub("\\*"; ".*")))" else "command(\($c))" end
-      elif test("^mcp__[^*]+$") then
-        capture("^mcp__(?<s>.+?)__(?<t>.+)$") | "mcp(\(.s)/\(.t))"
-      else empty end;
+     --slurpfile add "$AGY_SRC" '
+    def abs: map(sub("\\(~/"; "(\($h)/") | sub("\\$XDG_RUNTIME_DIR"; $run));
     .permissions = (.permissions // {})
-    | .permissions.deny = (((.permissions.deny // [])
-        + ([".aws", ".config/atlassian-mcp", ".config/gcloud", ".config/github-mcp",
-            ".config/gitlab-mcp", ".config/grafana-mcp", ".config/kubernetes-mcp",
-            ".docker/config.json", ".git-credentials", ".gitconfig", ".gnupg", ".kube", ".ssh"]
-           | map("read_file(\($h)/\(.))"))
-        + ["read_file(\($run)/kubernetes-mcp)", "write_file(/etc)"]
-        + ($claude[0].permissions.deny | map(agy))) | unique)
-    | .permissions.ask = (((.permissions.ask // [])
-        + ($claude[0].permissions.ask | map(agy))) | unique)' \
+    | .permissions.allow = (((.permissions.allow // []) + ($add[0].permissions.allow | abs)) | unique)
+    | .permissions.ask   = (((.permissions.ask   // []) + ($add[0].permissions.ask   | abs)) | unique)
+    | .permissions.deny  = (((.permissions.deny  // []) + ($add[0].permissions.deny  | abs)) | unique)' \
     "$AGY_SETTINGS" > "$TMP" && mv "$TMP" "$AGY_SETTINGS"
   chmod 600 "$AGY_SETTINGS"
-  echo "    merged credential-directory and command guardrails into $AGY_SETTINGS"
+  echo "    merged .gemini/antigravity-cli/settings.json into $AGY_SETTINGS"
 fi
 
 cat <<'EOF'

@@ -6,12 +6,20 @@
 set -uo pipefail
 
 input=$(cat)
-cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // ""')
+# Claude and Codex send .tool_input.command and read hookSpecificOutput;
+# Antigravity sends .toolCall.args.CommandLine and wants a JSON object on every
+# exit: {} to stay out of the decision, {"decision":"deny"} to block.
+cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // .toolCall.args.CommandLine // ""')
+agy=$(printf '%s' "$input" | jq -r 'if .toolCall then "1" else "" end')
+denied=""
+trap '[ -n "$agy" ] && [ -z "$denied" ] && echo "{}"' EXIT
 
 # Fast exit for anything that isn't a git push (also matches inside compound cmds)
 printf '%s' "$cmd" | grep -Eq '(^|[;&|]|[[:space:]])git[[:space:]]+push([[:space:]]|$)' || exit 0
 
 deny() {
+  denied=1
+  [ -n "$agy" ] && { jq -nc --arg r "$1" '{decision:"deny",reason:$r}'; exit 0; }
   jq -nc --arg r "$1" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
   exit 0
