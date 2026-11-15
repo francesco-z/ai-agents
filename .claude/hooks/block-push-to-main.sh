@@ -7,14 +7,15 @@ set -uo pipefail
 
 input=$(cat)
 # Claude and Codex send .tool_input.command and read hookSpecificOutput;
-# Antigravity sends .toolCall.args.CommandLine and wants a JSON object on every
-# exit: {} to stay out of the decision, {"decision":"deny"} to block.
+# Antigravity sends .toolCall.args.CommandLine and wants a decision on every
+# exit (a bare {} is taken as deny): "ask" hands the call back to the normal
+# permission rules, "deny" blocks it.
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // .toolCall.args.CommandLine // ""')
 agy=$(printf '%s' "$input" | jq -r 'if .toolCall then "1" else "" end')
 # Antigravity runs hooks from the hooks.json directory, not the workspace.
 [ -n "$agy" ] && cd "$(printf '%s' "$input" | jq -r '.workspacePaths[0] // "."')" 2>/dev/null
 denied=""
-trap '[ -n "$agy" ] && [ -z "$denied" ] && echo "{}"' EXIT
+trap '[ -n "$agy" ] && [ -z "$denied" ] && echo "{\"decision\":\"ask\"}"' EXIT
 
 # Fast exit for anything that isn't a git push (also matches inside compound cmds)
 printf '%s' "$cmd" | grep -Eq '(^|[;&|]|[[:space:]])git[[:space:]]+push([[:space:]]|$)' || exit 0
