@@ -11,7 +11,7 @@ DEST="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required."; exit 1; }
 
 echo "==> Installing into $DEST"
-mkdir -p "$DEST/agents" "$DEST/skills" "$DEST/workflows"
+mkdir -p "$DEST/agents" "$DEST/skills" "$DEST/workflows" "$DEST/hooks"
 
 sync() { # sync <subdir>
   if command -v rsync >/dev/null 2>&1; then
@@ -24,6 +24,7 @@ sync() { # sync <subdir>
 sync agents
 sync skills
 sync workflows
+sync hooks
 
 # ---- Merge env flag + manual-gate permissions into ~/.claude/settings.json ----
 SETTINGS="$DEST/settings.json"
@@ -35,15 +36,17 @@ jq --slurpfile add "$SRC/settings.json" '
   | .permissions.allow = (((.permissions.allow // []) + $add[0].permissions.allow) | unique)
   | .permissions.ask   = (((.permissions.ask   // []) + ($add[0].permissions.ask // [])) | unique)
   | .permissions.deny  = (((.permissions.deny  // []) + $add[0].permissions.deny ) | unique)
-  # Ship the prompt-based "goal" hooks (definition-of-done) globally. These carry
-  # no script file, so only the settings keys need merging. We deliberately do NOT
-  # merge PreToolUse: that push guard references $CLAUDE_PROJECT_DIR and stays
-  # project-scoped. unique keeps re-runs idempotent.
+  # Ship the prompt-based "goal" hooks (definition-of-done) and the push guard
+  # globally. unique keeps re-runs idempotent; an older push-guard entry (other
+  # script path) is replaced rather than left to run alongside.
   | .hooks = (.hooks // {})
+  | .hooks.PreToolUse   = (((.hooks.PreToolUse // [])
+        | map(select(any(.hooks[]; .command | test("block-push-to-main")) | not)))
+      + ($add[0].hooks.PreToolUse // []))
   | .hooks.Stop         = (((.hooks.Stop         // []) + ($add[0].hooks.Stop         // [])) | unique)
   | .hooks.SubagentStop = (((.hooks.SubagentStop // []) + ($add[0].hooks.SubagentStop // [])) | unique)
 ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
-echo "    enabled agent teams + merged manual-gate permissions + goal hooks in settings.json"
+echo "    enabled agent teams + merged manual-gate permissions + goal hooks + push guard in settings.json"
 
 # ---- Install the shared style/conventions file for every agent, every repo ----
 # AGENTS.md is the single source of truth; Claude reads CLAUDE.md, Gemini and
@@ -78,6 +81,10 @@ ln -sf "$REPO_DIR/mcp/github/github-mcp.sh"       "$HOME/.local/bin/github-mcp"
 ln -sf "$REPO_DIR/mcp/gitlab/gitlab-mcp.sh"       "$HOME/.local/bin/gitlab-mcp"
 ln -sf "$REPO_DIR/mcp/grafana/grafana-mcp.sh"     "$HOME/.local/bin/grafana-mcp"
 ln -sf "$REPO_DIR/mcp/kubernetes/kubernetes-mcp.sh" "$HOME/.local/bin/kubernetes-mcp"
+# The push guard is copied, not linked, so it keeps working if this repo moves:
+# Claude runs the copy synced to $DEST/hooks, Codex and Antigravity this one.
+rm -f "$HOME/.local/bin/block-push-to-main"
+cp "$REPO_DIR/.claude/hooks/block-push-to-main.sh" "$HOME/.local/bin/block-push-to-main"
 echo "    linked ~/.local/bin/{atlassian-mcp,github-mcp,gitlab-mcp,grafana-mcp,kubernetes-mcp}"
 
 # ---- Install the MCP servers each client is ready to use ---------------------
@@ -139,85 +146,42 @@ jq --arg skip " $SKIP " --slurpfile add "$REPO_DIR/.gemini/config/mcp_config.jso
 mv "$TMP" "$GEM_MCP"
 echo "    merged $GEM_MCP"
 
-# Codex: TOML has no merge tool, so append once and leave later edits alone.
-if [ -d "$HOME/.codex" ] && ! grep -q '^\[mcp_servers\.github\]' "$HOME/.codex/config.toml" 2>/dev/null; then
-  cat "$REPO_DIR/.codex/config.toml" >> "$HOME/.codex/config.toml"
-  echo "    appended MCP servers to ~/.codex/config.toml"
-elif [ -d "$HOME/.codex" ]; then
-  # Blocks already there: add disabled_tools to the ones that lack it.
-  awk '/^\[mcp_servers\./{s=$0} /^disabled_tools = /{print s "\t" $0}' "$REPO_DIR/.codex/config.toml" \
-    | while IFS="$(printf '\t')" read -r hdr line; do
-      grep -qxF "$hdr" "$HOME/.codex/config.toml" || continue
-      awk -v h="$hdr" '$0==h{t=1;next} /^\[/{t=0} t&&/^disabled_tools/{f=1} END{exit !f}' \
-        "$HOME/.codex/config.toml" && continue
-      TMP="$(mktemp)"
-      awk -v h="$hdr" -v add="$line" '{print} $0==h{print add}' \
-        "$HOME/.codex/config.toml" > "$TMP" && mv "$TMP" "$HOME/.codex/config.toml"
-      echo "    added disabled_tools to $hdr in ~/.codex/config.toml"
-    done
-fi
+# Antigravity's push guard: merged, so hooks you added by hand survive.
+GEM_HOOKS="${GEMINI_CONFIG_DIR:-$HOME/.gemini}/config/hooks.json"
+[ -s "$GEM_HOOKS" ] || echo '{}' > "$GEM_HOOKS"
+TMP="$(mktemp)"
+jq -s '.[0] + .[1]' "$GEM_HOOKS" "$REPO_DIR/.gemini/config/hooks.json" > "$TMP" && mv "$TMP" "$GEM_HOOKS"
+echo "    merged $GEM_HOOKS"
 
-# ---- Keep agents out of credential directories ------------------------------
-# Claude's deny rules ship in .claude/settings.json (merged above). Codex gets a
-# permission profile, Antigravity a translated settings file. Shell tools (kubectl, aws, ssh, git) keep working for
-# Claude and Antigravity; in Codex they need an approved run outside the sandbox.
-# The command rules (allow/ask/deny) follow the same split: Codex reads
-# .codex/rules/ai-agents.rules, Antigravity .gemini/antigravity-cli/settings.json.
-# The push guard hook stays project-scoped for all three (.claude/settings.json,
-# .codex/hooks.json, .agents/hooks.json).
-if [ -d "$HOME/.codex" ] && ! grep -q '^\[permissions\.agents-safe\]' "$HOME/.codex/config.toml" 2>/dev/null; then
-  TMP="$(mktemp)"
-  { grep -q '^default_permissions' "$HOME/.codex/config.toml" 2>/dev/null \
-      || { grep '^default_permissions' "$REPO_DIR/.codex/permissions.toml"; echo; }
-    cat "$HOME/.codex/config.toml" 2>/dev/null; echo
-    sed -n '/^\[permissions\./,$p' "$REPO_DIR/.codex/permissions.toml"; } > "$TMP"
-  mv "$TMP" "$HOME/.codex/config.toml"
-  echo "    added the agents-safe permission profile to ~/.codex/config.toml"
-elif [ -d "$HOME/.codex" ]; then
-  # Profile already there: add only the paths introduced since.
-  sed -n '/^\[permissions\.agents-safe\.filesystem\]/,$p' "$REPO_DIR/.codex/permissions.toml" \
-    | grep '= "deny"$' | while IFS= read -r line; do
-      grep -qxF "$line" "$HOME/.codex/config.toml" && continue
-      TMP="$(mktemp)"
-      awk -v add="$line" '{print} /^\[permissions\.agents-safe\.filesystem\]/{print add}' \
-        "$HOME/.codex/config.toml" > "$TMP" && mv "$TMP" "$HOME/.codex/config.toml"
-      echo "    added $line to the agents-safe profile"
-    done
-fi
+# Codex: TOML has no merge tool, so ~/.codex/config.toml is written whole from
+# .codex/permissions.toml + .codex/config.toml (in that order: top-level keys
+# must precede tables), minus the servers skipped above. Whatever was there is
+# backed up first, so settings Codex or you added can be copied back.
 if [ -d "$HOME/.codex" ]; then
+  TMP="$(mktemp)"
+  cat "$REPO_DIR/.codex/permissions.toml" "$REPO_DIR/.codex/config.toml" | awk -v skip=" $SKIP " '
+    /^\[/ { drop = 0 }
+    /^\[mcp_servers\./ { n = $0; gsub(/^\[mcp_servers\.|\]$/, "", n); drop = index(skip, " " n " ") > 0 }
+    !drop' > "$TMP"
+  if [ -f "$HOME/.codex/config.toml" ] && ! cmp -s "$TMP" "$HOME/.codex/config.toml"; then
+    BAK="$HOME/.codex/config.toml.bak-$(date +%Y%m%d%H%M%S)"
+    cp "$HOME/.codex/config.toml" "$BAK"
+    echo "    NOTE: backed up your existing config.toml to $BAK"
+  fi
+  mv "$TMP" "$HOME/.codex/config.toml"
   mkdir -p "$HOME/.codex/rules"
   cp "$REPO_DIR/.codex/rules/ai-agents.rules" "$HOME/.codex/rules/ai-agents.rules"
-  echo "    installed ~/.codex/rules/ai-agents.rules"
+  cp "$REPO_DIR/.codex/hooks.json" "$HOME/.codex/hooks.json"
+  echo "    installed ~/.codex/config.toml, hooks.json and rules/ai-agents.rules"
 fi
 
-# Antigravity's rules are versioned in .gemini/antigravity-cli/settings.json for
-# review, but .claude/settings.json stays the source: the file is regenerated
-# here, so a Claude rule change shows up as a diff to commit. Bash(...) rules
-# become command(...) prefixes, or regex: when a * sits mid-rule; MCP rules carry
-# over only when they name one tool; Read/Write paths lose their globs. The
-# blanket Edit/Write allow becomes write_file(*), which there also grants reads.
+# ---- Permission rules --------------------------------------------------------
+# Each client's rules are a checked-in file in its own format, kept in step by
+# hand: .claude/settings.json (merged above), .codex/permissions.toml and
+# .codex/rules/ai-agents.rules (copied above), .gemini/antigravity-cli/settings.json
+# (merged below). The push guard hook is global for all three, wired from
+# .claude/settings.json, .codex/hooks.json and .gemini/config/hooks.json.
 AGY_SRC="$REPO_DIR/.gemini/antigravity-cli/settings.json"
-jq '
-  def agy:
-    if startswith("Bash(") then
-      (.[5:-1] | sub("(?<!:):\\*$"; "") | sub(" \\*$"; "")
-       | if test("^[^*]+\\*$") then .[:-1] else . end) as $c
-      | if ($c | contains("*")) then "command(regex:\($c | gsub("\\*"; ".*")))" else "command(\($c))" end
-    elif test("^mcp__[^*]+$") then
-      capture("^mcp__(?<s>.+?)__(?<t>.+)$") | "mcp(\(.s)/\(.t))"
-    elif . == "Edit" or . == "Write" or . == "NotebookEdit" then "write_file(*)"
-    elif test("^(Read|Write)\\(") then
-      capture("^(?<v>Read|Write)\\((?<p>.*)\\)$")
-      | (if .v == "Read" then "read_file" else "write_file" end) as $a
-      | .p | sub("/\\*\\*$"; "") | sub("^//run/user/\\*"; "$XDG_RUNTIME_DIR") | sub("^//"; "/")
-      | if . == "~/.git*" then "~/.git-credentials", "~/.gitconfig" else . end
-      | "\($a)(\(.))"
-    else empty end;
-  # A denied read already blocks writes, so the matching write_file is dropped.
-  def rules: map(agy) | . as $r
-    | map(select(. as $x | (startswith("write_file(") and ($r | index("read_file(" + $x[11:]))) | not)) | unique;
-  {permissions: (.permissions | {allow: (.allow | rules), ask: (.ask | rules), deny: (.deny | rules)})}
-' "$SRC/settings.json" > "$AGY_SRC.tmp" && mv "$AGY_SRC.tmp" "$AGY_SRC"
 
 # Antigravity takes absolute paths only, so ~ and $XDG_RUNTIME_DIR are expanded
 # on the way in; merged, so your own rules and other settings survive.

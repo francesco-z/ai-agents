@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$(git rev-parse --show-toplevel)/.claude/hooks/block-push-to-main.sh\"",
+            "command": "\"$HOME/.local/bin/block-push-to-main\"",
             "statusMessage": "Checking push target..."
           }
         ]

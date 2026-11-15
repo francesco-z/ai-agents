@@ -1,6 +1,6 @@
-# Merged into ~/.codex/config.toml by install.sh: default_permissions goes at the
-# top of the file (TOML top-level keys must precede tables), the profile tables
-# at the end. Ignored if any loaded config sets sandbox_mode.
+# Written to the top of ~/.codex/config.toml by install.sh, ahead of
+# .codex/config.toml (TOML top-level keys must precede tables). Ignored if any
+# loaded config sets sandbox_mode.
 #
 # Deny applies to sandboxed commands: kubectl/aws/ssh that need these
 # directories must run outside the sandbox, which Codex asks you to approve.

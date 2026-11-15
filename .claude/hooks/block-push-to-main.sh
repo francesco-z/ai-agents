@@ -11,6 +11,8 @@ input=$(cat)
 # exit: {} to stay out of the decision, {"decision":"deny"} to block.
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // .toolCall.args.CommandLine // ""')
 agy=$(printf '%s' "$input" | jq -r 'if .toolCall then "1" else "" end')
+# Antigravity runs hooks from the hooks.json directory, not the workspace.
+[ -n "$agy" ] && cd "$(printf '%s' "$input" | jq -r '.workspacePaths[0] // "."')" 2>/dev/null
 denied=""
 trap '[ -n "$agy" ] && [ -z "$denied" ] && echo "{}"' EXIT
 

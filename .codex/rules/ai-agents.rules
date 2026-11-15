@@ -1,6 +1,6 @@
 # Command guardrails for Codex, mirroring permissions.deny / permissions.ask in
-# .claude/settings.json. Installed to ~/.codex/rules/ by install.sh; keep the two
-# in step. The strictest matching rule wins (forbidden > prompt > allow).
+# .claude/settings.json. Copied to ~/.codex/rules/ by install.sh; keep the two
+# in step by hand. The strictest matching rule wins (forbidden > prompt > allow).
 #
 # Patterns are argument prefixes with no wildcards, so two Claude rules have no
 # exact equivalent: `aws <service> <mutating-verb>-*` becomes a prompt on every

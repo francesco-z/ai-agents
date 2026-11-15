@@ -24,7 +24,7 @@ in ready to use, at the path that client expects, and maintained by hand:
 | --- | --- | --- | --- |
 | `.claude/mcp.json` | `~/.claude.json`, user scope | `"type": "http"` + `"url"`, or `"command"` + `"args"` | one `claude mcp add-json -s user` per server |
 | `.gemini/config/mcp_config.json` | same path under `~` | stdio only, plus `excludeTools` | `jq` merge, so hand-added servers survive |
-| `.codex/config.toml` | `~/.codex/config.toml` | stdio only, TOML | appended once, only if `~/.codex` exists |
+| `.codex/config.toml` | `~/.codex/config.toml` | stdio only, TOML | written whole (old file backed up), only if `~/.codex` exists |
 | — | Cursor, VS Code, Zed | same shape as Claude Code | copy `.claude/mcp.json` |
 
 **Adding a server means editing all three.** That is the cost of keeping them
@@ -35,10 +35,9 @@ that works on every build, instead of betting on which remote-URL key a given
 version accepts. Claude Code keeps native HTTP.
 
 Everything is registered at **user scope**, so there is no project `.mcp.json` in
-this repo. For Claude and Gemini, a launcher-backed server is skipped until
-its profile exists in `~/.config/atlassian-mcp/`, so a half-configured customer
-never registers a server that fails at spawn; Codex is a verbatim append, so
-prune those blocks yourself.
+this repo. A launcher-backed server is skipped until its profile exists in
+`~/.config/atlassian-mcp/`, so a half-configured customer never registers a
+server that fails at spawn.
 
 Two rules keep the rest portable:
 

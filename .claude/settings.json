@@ -478,7 +478,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/block-push-to-main.sh\"",
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/block-push-to-main.sh\"",
             "statusMessage": "Checking push target..."
           }
         ]

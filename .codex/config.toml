@@ -1,11 +1,11 @@
-# Appended to ~/.codex/config.toml by install.sh, verbatim — unlike the other
-# clients there is no merge step, so delete the blocks whose Atlassian profile
-# you have not created, or Codex will report those servers as failing.
+# Written to ~/.codex/config.toml by install.sh after .codex/permissions.toml,
+# minus the servers whose profile you have not created. The file is replaced on
+# every install (the old one is backed up), so make lasting changes here.
 # Codex is stdio-only on most builds and does not expand ${VAR} in config, so
 # both remote servers go through a local command: github-mcp reads
 # $GITHUB_MCP_TOKEN at spawn time, and Rovo goes through the mcp-remote bridge.
 # disabled_tools mirrors excludeTools in .gemini/config/mcp_config.json (exact
-# names only); install.sh adds it to a server block that is already installed.
+# names only).
 
 [mcp_servers.github]
 command = "github-mcp"

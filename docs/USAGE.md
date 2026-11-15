@@ -132,8 +132,8 @@ merge manually.
   in `.claude/workflows/**`, then `make install` to propagate to `~/.claude`.
 - Adjust the safety gates in `.claude/settings.json` (`permissions.deny`). The
   installer merges these into `~/.claude/settings.json` so they apply everywhere.
-  Antigravity's rules are regenerated from the same file into
-  `.gemini/antigravity-cli/settings.json` on every install — commit the diff;
-  Codex's live in `.codex/rules/ai-agents.rules`, `.codex/permissions.toml` and
-  the `disabled_tools` lists in `.codex/config.toml` — change those alongside.
+  Antigravity's rules live in `.gemini/antigravity-cli/settings.json`, Codex's
+  in `.codex/rules/ai-agents.rules`, `.codex/permissions.toml` and the
+  `disabled_tools` lists in `.codex/config.toml` — each is copied or merged
+  as-is, so change them alongside.
 - `make list` shows what's installed; `make uninstall` removes it.

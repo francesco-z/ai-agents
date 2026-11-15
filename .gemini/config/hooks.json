@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "../.claude/hooks/block-push-to-main.sh"
+            "command": "~/.local/bin/block-push-to-main"
           }
         ]
       }
